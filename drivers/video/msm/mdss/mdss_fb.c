@@ -2,7 +2,7 @@
  * Core MDSS framebuffer driver.
  *
  * Copyright (C) 2007 Google Incorporated
- * Copyright (c) 2008-2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2008-2018, The Linux Foundation. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -273,6 +273,79 @@ static int mdss_fb_notify_update(struct msm_fb_data_type *mfd,
 	return ret;
 }
 
+//FIHTDC - gatycclu - MA3-589 - Apply SHARP backlight mapping rule {
+typedef struct { int x; int y; } coord_t;
+#define PANEL_TABLE_NUM     14
+#define TARGET_TABLE_NUM    10
+
+coord_t panel_lux_bl_map[PANEL_TABLE_NUM] =
+{
+    {0, 0},
+    {20, 474},
+    {40, 956},
+    {60, 1430},
+    {80, 1889},
+    {100, 2338},
+    {120, 2776},
+    {140, 3207},
+    {160, 3626},
+    {180, 4041},
+    {200, 4461},
+    {220, 4861},
+    {240, 5265},
+    {255, 5586}
+};
+
+coord_t target_lux_bl_map[TARGET_TABLE_NUM] =
+{
+    {1, 50},
+    {2, 50},
+    {3, 50},
+    {4, 77},
+    {10, 103},
+    {20, 150},
+    {60, 365},
+    {128,1100},
+    {200,2643},
+    {255,5000}
+};
+
+int fih_interp_to_target_level( coord_t* panel_t, coord_t* target_t, int x)
+{
+    int i;
+    int diffx;
+    int diffn;
+    int temp;
+
+    // Get Lux
+    for( i = 0; i < TARGET_TABLE_NUM-1; i++ )
+    {
+        if ( target_t[i].x <= x && target_t[i+1].x >= x )
+        {
+            diffx = x - target_t[i].x;
+            diffn = target_t[i+1].x - target_t[i].x;
+
+            temp= target_t[i].y + ( target_t[i+1].y - target_t[i].y ) * diffx / diffn;
+        }
+    }
+
+    // Get level
+    for( i = 0; i < PANEL_TABLE_NUM-1; i++ )
+    {
+        if ( panel_t[i].y <= temp && panel_t[i+1].y >= temp )
+        {
+            diffx = temp - panel_t[i].y;
+            diffn = panel_t[i+1].y - panel_t[i].y;
+            temp = panel_t[i].x + ( panel_t[i+1].x - panel_t[i].x ) * diffx / diffn;
+            pr_debug("[LCMDEBUG]%s: old level=%d, new level=%d", __func__, (int)x, (int)temp);
+            return temp;
+        }
+    }
+
+    return 0; // Not in Range
+}
+//FIHTDC - gatycclu - MA3-589 - Apply SHARP backlight mapping rule }
+
 static int lcd_backlight_registered;
 
 static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
@@ -285,6 +358,14 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 		led_trigger_event(mfd->boot_notification_led, 0);
 		mfd->boot_notification_led = NULL;
 	}
+
+	//FIHTDC - gatycclu - MA3-589 - Apply SHARP backlight mapping rule {
+	if (mfd->panel_info->sharp_bl_mapping) {
+		pr_debug("[LCMDEBUG]=============old backlight=%d\n", value);
+		value = fih_interp_to_target_level(panel_lux_bl_map, target_lux_bl_map, value);
+		pr_debug("[LCMDEBUG]=============new backlight=%d\n", value);
+	}
+	//FIHTDC - gatycclu - MA3-589 - Apply SHARP backlight mapping rule }
 
 	if (value > mfd->panel_info->brightness_max)
 		value = mfd->panel_info->brightness_max;
@@ -343,6 +424,9 @@ static ssize_t mdss_fb_get_type(struct device *dev,
 		break;
 	case EDP_PANEL:
 		ret = snprintf(buf, PAGE_SIZE, "edp panel\n");
+		break;
+	case SPI_PANEL:
+		ret = snprintf(buf, PAGE_SIZE, "spi panel\n");
 		break;
 	default:
 		ret = snprintf(buf, PAGE_SIZE, "unknown panel\n");
@@ -942,6 +1026,9 @@ static void mdss_fb_shutdown(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd = platform_get_drvdata(pdev);
 
+	if (!mfd)
+		return;
+
 	mfd->shutdown_pending = true;
 
 	/* wake up threads waiting on idle or kickoff queues */
@@ -1199,6 +1286,7 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	struct mdss_panel_data *pdata;
 	struct fb_info *fbi;
 	int rc;
+	const char *data;
 
 	if (fbi_list_index >= MAX_FBI_LIST)
 		return -ENOMEM;
@@ -1247,6 +1335,21 @@ static int mdss_fb_probe(struct platform_device *pdev)
 
 	mfd->pdev = pdev;
 
+	if (mfd->panel.type == SPI_PANEL)
+		mfd->fb_imgType = MDP_RGB_565;
+	if (mfd->panel.type == MIPI_VIDEO_PANEL || mfd->panel.type ==
+		MIPI_CMD_PANEL || mfd->panel.type == SPI_PANEL){
+		rc = of_property_read_string(pdev->dev.of_node,
+			"qcom,mdss-fb-format", &data);
+		if (!rc) {
+			if (!strcmp(data, "rgb888"))
+				mfd->fb_imgType = MDP_RGB_888;
+			else if (!strcmp(data, "rgb565"))
+				mfd->fb_imgType = MDP_RGB_565;
+			else
+				mfd->fb_imgType = MDP_RGBA_8888;
+		}
+	}
 	mfd->split_fb_left = mfd->split_fb_right = 0;
 
 	mdss_fb_set_split_mode(mfd, pdata);
@@ -1357,6 +1460,7 @@ static void mdss_fb_set_mdp_sync_pt_threshold(struct msm_fb_data_type *mfd,
 		mfd->mdp_sync_pt_data.threshold = 1;
 		mfd->mdp_sync_pt_data.retire_threshold = 0;
 		break;
+	case SPI_PANEL:
 	case MIPI_CMD_PANEL:
 		mfd->mdp_sync_pt_data.threshold = 1;
 		mfd->mdp_sync_pt_data.retire_threshold = 1;
@@ -1635,7 +1739,6 @@ static void mdss_fb_scale_bl(struct msm_fb_data_type *mfd, u32 *bl_lvl)
 			temp = mfd->bl_min_lvl;
 	}
 	pr_debug("output = %d\n", temp);
-
 	(*bl_lvl) = temp;
 }
 
@@ -1646,6 +1749,7 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 	u32 temp = bkl_lvl;
 	bool ad_bl_notify_needed = false;
 	bool bl_notify_needed = false;
+	bool twm_en = false;
 
 	if ((((mdss_fb_is_power_off(mfd) && mfd->dcm_state != DCM_ENTER)
 		|| !mfd->allow_bl_update) && !IS_CALIB_MODE_BL(mfd)) ||
@@ -1680,9 +1784,16 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 			if (mfd->bl_level != bkl_lvl)
 				bl_notify_needed = true;
 			pr_debug("backlight sent to panel :%d\n", temp);
-			pdata->set_backlight(pdata, temp);
-			mfd->bl_level = bkl_lvl;
-			mfd->bl_level_scaled = temp;
+			if (mfd->mdp.is_twm_en)
+				twm_en = mfd->mdp.is_twm_en();
+
+			if (twm_en) {
+				pr_info("TWM Enabled skip backlight update\n");
+			} else {
+				pdata->set_backlight(pdata, temp);
+				mfd->bl_level = bkl_lvl;
+				mfd->bl_level_scaled = temp;
+			}
 		}
 		if (ad_bl_notify_needed)
 			mdss_fb_bl_update_notify(mfd,
@@ -1956,6 +2067,14 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 	 * supported for command mode panels. For all other panel, treat lp
 	 * mode as full unblank and ulp mode as full blank.
 	 */
+	if ((mfd->panel_info->type == SPI_PANEL) &&
+		((BLANK_FLAG_LP == blank_mode) ||
+		(BLANK_FLAG_ULP == blank_mode))) {
+		pr_debug("lp/ulp mode are not supported for SPI panels\n");
+		if (mdss_fb_is_power_on_interactive(mfd))
+			return 0;
+	}
+
 	if (mfd->panel_info->type != MIPI_CMD_PANEL) {
 		if (BLANK_FLAG_LP == blank_mode) {
 			pr_debug("lp mode only valid for cmd mode panels\n");
@@ -3356,13 +3475,13 @@ int mdss_fb_atomic_commit(struct fb_info *info,
 			__ioctl_transition_dyn_mode_state(mfd,
 				MSMFB_ATOMIC_COMMIT, true, false);
 			if (mfd->panel.type == WRITEBACK_PANEL) {
-				output_layer = commit_v1->output_layer;
-				if (!output_layer) {
+				if (!commit_v1->output_layer) {
 					pr_err("Output layer is null\n");
 					goto end;
 				}
+				output_layer = commit_v1->output_layer;
 				wb_change = !mdss_fb_is_wb_config_same(mfd,
-						commit_v1->output_layer);
+						output_layer);
 				if (wb_change) {
 					old_xres = pinfo->xres;
 					old_yres = pinfo->yres;
@@ -3563,10 +3682,31 @@ void mdss_panelinfo_to_fb_var(struct mdss_panel_info *pinfo,
 				(unsigned long int) pinfo->clk_rate / 1000);
 	}
 
-	if (pinfo->physical_width)
-		var->width = pinfo->physical_width;
-	if (pinfo->physical_height)
-		var->height = pinfo->physical_height;
+	//SW4-HL-Display-CTS_Xdpi_Ydpi-00+{_20151112
+	if (pinfo->physical_width_full)
+	{
+		var->width = pinfo->physical_width_full;
+	}
+	else
+	{
+		if (pinfo->physical_width)
+		{
+			var->width = pinfo->physical_width;
+		}
+	}
+
+	if (pinfo->physical_height_full)
+	{
+		var->height = pinfo->physical_height_full;
+	}
+	else
+	{
+		if (pinfo->physical_height)
+		{
+			var->height = pinfo->physical_height;
+		}
+	}
+	//SW4-HL-Display-CTS_Xdpi_Ydpi-00+}_20151112
 
 	pr_debug("ScreenInfo: res=%dx%d [%d, %d] [%d, %d]\n",
 		var->xres, var->yres, var->left_margin,

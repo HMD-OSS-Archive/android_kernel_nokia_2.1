@@ -1,10 +1,16 @@
 #ifndef __FIH_RAMTABLE_H
 #define __FIH_RAMTABLE_H
 
-//#define FIH_RAM_BASE					0xC3200000
+#ifdef CONFIG_FIH_PROJECT_E2M
 #define FIH_RAM_BASE					0x84A00000
 #define FIH_RAM_SIZE					0x00900000
 #define FIH_RAM_SIZE_MB					9
+#else
+#define FIH_RAM_BASE					0xC3200000
+#define FIH_RAM_SIZE					0x00900000
+#define FIH_RAM_SIZE_MB					9
+#endif
+
  /* -------------------------------------------------------- */
 /* modem rf_nv */
 #define FIH_MODEM_RF_NV_BASE			FIH_RAM_BASE

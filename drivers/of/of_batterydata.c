@@ -382,6 +382,7 @@ struct device_node *of_batterydata_get_best_profile(
 					best_node = node;
 					best_delta = delta;
 					best_id_kohm = batt_ids.kohm[i];
+					printk("BBox::UPD;0::%d\n", best_id_kohm);
 				}
 			}
 		}
@@ -389,6 +390,7 @@ struct device_node *of_batterydata_get_best_profile(
 
 	if (best_node == NULL) {
 		pr_err("No battery data found\n");
+		printk("BBox::UEC;49::4\n");
 		return best_node;
 	}
 
@@ -453,7 +455,6 @@ int of_batterydata_read_data(struct device_node *batterydata_container_node,
 
 	if (best_node == NULL) {
 		pr_err("No battery data found\n");
-		printk("BBox::UEC;49::4\n");
 		return -ENODATA;
 	}
 	rc = of_property_read_string(best_node, "qcom,battery-type",
@@ -462,8 +463,6 @@ int of_batterydata_read_data(struct device_node *batterydata_container_node,
 		pr_info("%s loaded\n", battery_type);
 	else
 		pr_info("%s loaded\n", best_node->name);
-
-	printk("BBox::UPD;0::%d\n", best_id_kohm);
 
 	return of_batterydata_load_battery_data(best_node,
 					best_id_kohm, batt_data);

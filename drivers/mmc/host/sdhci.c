@@ -55,7 +55,6 @@
 
 static unsigned int debug_quirks = 0;
 static unsigned int debug_quirks2;
-unsigned int cmd_op_code = 0;
 
 static void sdhci_finish_data(struct sdhci_host *);
 
@@ -98,9 +97,14 @@ static void sdhci_dump_state(struct sdhci_host *host)
 		mmc_hostname(mmc), host->clock, mmc->clk_gated,
 		mmc->claimer->comm, host->pwr,
 		(host->flags & SDHCI_HOST_IRQ_STATUS));
-	pr_info("BBox;%s: clk: %d clk-gated: %d claimer: %s pwr: %d\n",
+	pr_info("%s: rpmstatus[pltfm](runtime-suspend:usage_count:disable_depth)(%d:%d:%d)\n",
+		mmc_hostname(mmc), mmc->parent->power.runtime_status,
+		atomic_read(&mmc->parent->power.usage_count),
+		mmc->parent->power.disable_depth);
+	pr_info("BBox;%s: clk: %d clk-gated: %d claimer: %s pwr: %d host->irq = %d\n",
 		mmc_hostname(mmc), host->clock, mmc->clk_gated,
-		mmc->claimer->comm, host->pwr);
+		mmc->claimer->comm, host->pwr,
+		(host->flags & SDHCI_HOST_IRQ_STATUS));
 	pr_info("BBox;%s: rpmstatus[pltfm](runtime-suspend:usage_count:disable_depth)(%d:%d:%d)\n",
 		mmc_hostname(mmc), mmc->parent->power.runtime_status,
 		atomic_read(&mmc->parent->power.usage_count),
@@ -109,6 +113,8 @@ static void sdhci_dump_state(struct sdhci_host *host)
 
 static void sdhci_dumpregs(struct sdhci_host *host)
 {
+	unsigned int cmd_op_code = 0;
+
 	MMC_TRACE(host->mmc,
 		"%s: 0x04=0x%08x 0x06=0x%08x 0x0E=0x%08x 0x30=0x%08x 0x34=0x%08x 0x38=0x%08x\n",
 		__func__,
@@ -177,9 +183,11 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 		       readl(host->ioaddr + SDHCI_ADMA_ADDRESS_LOW));
 	}
 
+	host->mmc->err_occurred = true;
+
 	pr_info("BBox;SDHCI: =========== REGISTER DUMP (%s)===========\n",
 		mmc_hostname(host->mmc));
-	host->mmc->err_occurred = true;
+
 	pr_info("BBox;SDHCI: Sys addr: 0x%08x | Version:  0x%08x\n",
 		sdhci_readl(host, SDHCI_DMA_ADDRESS),
 		sdhci_readw(host, SDHCI_HOST_VERSION));
@@ -229,13 +237,14 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 	pr_info("BBox;SDHCI: ===========================================\n");
 	/* New BBS log*/
 	cmd_op_code = (sdhci_readw(host, SDHCI_COMMAND)) >> 8;
+
 	if(strncmp(mmc_hostname(host->mmc), "mmc0", 4) == 0) {
 		if(cmd_op_code == MMC_READ_SINGLE_BLOCK || cmd_op_code == MMC_READ_MULTIPLE_BLOCK) {
 			printk ("BBox::UEC; 6::0\n");
-			printk ("BBox::UPD; 43::%lu\n", (unsigned long)sdhci_readl(host, SDHCI_ARGUMENT));
+			printk ("BBox::UPD; 67::%lu\n", (unsigned long)sdhci_readl(host, SDHCI_ARGUMENT));
 		} else if(cmd_op_code == MMC_WRITE_BLOCK || cmd_op_code == MMC_WRITE_MULTIPLE_BLOCK) {
 			printk ("BBox::UEC; 6::1\n");
-			printk ("BBox::UPD; 43::%lu\n", (unsigned long)sdhci_readl(host, SDHCI_ARGUMENT));
+			printk ("BBox::UPD; 67::%lu\n", (unsigned long)sdhci_readl(host, SDHCI_ARGUMENT));
 		} else {
 			printk ("BBox::UEC; 6::2\n");
 		}
@@ -1522,6 +1531,7 @@ clock_set:
 		if (timeout == 0) {
 			pr_err("%s: Internal clock never "
 				"stabilised.\n", mmc_hostname(host->mmc));
+			printk ("BBox::UEC; 6::3\n");
 			pr_err("BBox;%s: Internal clock never "
 				"stabilised.\n", mmc_hostname(host->mmc));
 			sdhci_dumpregs(host);
@@ -2900,8 +2910,7 @@ static void sdhci_timeout_timer(unsigned long data)
 		pr_err("%s: Timeout waiting for hardware "
 			"interrupt.\n", mmc_hostname(host->mmc));
 		pr_err("BBox;%s: Timeout waiting for hardware interrupt.\n",
-			       mmc_hostname(host->mmc));
-
+		       mmc_hostname(host->mmc));
 		if (host->data)
 			sdhci_show_adma_error(host);
 		else
@@ -2979,8 +2988,8 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *mask)
 		auto_cmd_status = host->auto_cmd_err_sts;
 		pr_err_ratelimited("%s: %s: AUTO CMD err sts 0x%08x\n",
 			mmc_hostname(host->mmc), __func__, auto_cmd_status);
-		pr_err("BBox;%s: %s: AUTO CMD err sts 0x%08x\n",
-			 mmc_hostname(host->mmc), __func__, auto_cmd_status);
+		pr_err_ratelimited("BBox;%s: %s: AUTO CMD err sts 0x%08x\n",
+			mmc_hostname(host->mmc), __func__, auto_cmd_status);
 		if (auto_cmd_status & (SDHCI_AUTO_CMD12_NOT_EXEC |
 				       SDHCI_AUTO_CMD_INDEX_ERR |
 				       SDHCI_AUTO_CMD_ENDBIT_ERR))
@@ -3168,6 +3177,7 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 		host->data->error = -EILSEQ;
 	else if (intmask & SDHCI_INT_ADMA_ERROR) {
 		pr_err("%s: ADMA error\n", mmc_hostname(host->mmc));
+		printk ("BBox::UEC; 6::4\n");
 		sdhci_show_adma_error(host);
 		host->data->error = -EIO;
 		if (host->ops->adma_workaround)
@@ -3189,10 +3199,6 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 		}
 		if (pr_msg && __ratelimit(&host->dbg_dump_rs)) {
 			pr_err("%s: data txfr (0x%08x) error: %d after %lld ms\n",
-			       mmc_hostname(host->mmc), intmask,
-			       host->data->error, ktime_to_ms(ktime_sub(
-			       ktime_get(), host->data_start_time)));
-			pr_err("BBox;%s: data txfr (0x%08x) error: %d after %lld ms\n",
 			       mmc_hostname(host->mmc), intmask,
 			       host->data->error, ktime_to_ms(ktime_sub(
 			       ktime_get(), host->data_start_time)));
@@ -3311,7 +3317,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	if (!host->clock && host->mmc->card &&
+	if (!(!host->mmc->clk_gated && host->clock) && host->mmc->card &&
 			mmc_card_sdio(host->mmc->card)) {
 		if (!mmc_card_and_host_support_async_int(host->mmc)) {
 			spin_unlock(&host->lock);

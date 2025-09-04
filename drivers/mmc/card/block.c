@@ -771,7 +771,7 @@ cmd_rel_host:
 			       mmc_hostname(card->host), __func__);
 	}
 cmd_rel_host_halt:
-	mmc_release_host(card->host);
+	mmc_put_card(card);
 
 cmd_done:
 	mmc_blk_put(md);
@@ -1300,7 +1300,7 @@ static int mmc_blk_cmd_error(struct request *req, const char *name, int error,
 		if (!status_valid) {
 			pr_err_ratelimited("%s: status not valid, retrying timeout\n",
 				req->rq_disk->disk_name);
-			pr_err("BBox;%s: status not valid, retrying timeout\n", req->rq_disk->disk_name);
+			pr_err("BBox;%s: status not valid, retrying timeout\n", req->rq_disk->disk_name);	
 			return ERR_RETRY;
 		}
 		/*
@@ -1320,7 +1320,7 @@ static int mmc_blk_cmd_error(struct request *req, const char *name, int error,
 		pr_err_ratelimited(
 			"%s: not retrying timeout\n",
 			req->rq_disk->disk_name);
-		pr_err("BBox;%s: not retrying timeout\n", req->rq_disk->disk_name);
+		pr_err("BBox;%s: not retrying timeout\n", req->rq_disk->disk_name);	
 		return ERR_ABORT;
 
 	default:
@@ -1415,12 +1415,10 @@ static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
 		if (err) {
 			pr_err("%s: error %d sending stop command\n",
 			       req->rq_disk->disk_name, err);
-			pr_err("BBox;%s: error %d sending stop command\n",
-			       req->rq_disk->disk_name, err);
-		/*
-		 * If the stop cmd also timed out, the card is probably
-		 * not present, so abort.  Other errors are bad news too.
-		 */
+			/*
+			 * If the stop cmd also timed out, the card is probably
+			 * not present, so abort. Other errors are bad news too.
+			 */
 			return ERR_ABORT;
 		}
 
@@ -1443,12 +1441,13 @@ static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
 		return ERR_CONTINUE;
 
 	/* Now for stop errors.  These aren't fatal to the transfer. */
-	pr_info("%s: error %d sending stop command, original cmd response %#x, card status %#x\n",
+	pr_err("%s: error %d sending stop command, original cmd response %#x, card status %#x\n",
 	       req->rq_disk->disk_name, brq->stop.error,
 	       brq->cmd.resp[0], status);
 	pr_err("BBox;%s: error %d sending stop command, original cmd response %#x, card status %#x\n",
 	       req->rq_disk->disk_name, brq->stop.error,
 	       brq->cmd.resp[0], status);
+		   
 	/*
 	 * Subsitute in our own stop status as this will give the error
 	 * state which happened during the execution of the r/w command.
@@ -3750,6 +3749,7 @@ cmdq_switch:
 		pr_err("%s: %s: mmc_blk_cmdq_switch failed: %d\n",
 			mmc_hostname(host), __func__,  err);
 		ret = err;
+		goto out;
 	}
 cmdq_unhalt:
 	err = mmc_cmdq_halt(host, false);
@@ -3800,7 +3800,7 @@ static int mmc_blk_cmdq_issue_rq(struct mmc_queue *mq, struct request *req)
 		} else {
 			pr_err("%s: %s: partition switch failed err = %d\n",
 				md->disk->disk_name, __func__, err);
-			ret = 0;
+			ret = err;
 			goto out;
 		}
 	}
@@ -4406,6 +4406,9 @@ static int mmc_blk_probe(struct mmc_card *card)
 		md->disk->disk_name, mmc_card_id(card), mmc_card_name(card),
 		cap_str, md->read_only ? "(ro)" : "");
 
+	if(strncmp(md->disk->disk_name, "mmcblk1", 7) == 0) {
+		printk("BBox::UPD;68::%llu::%u::%s\n", (u64)get_capacity(md->disk)*(u64)512, mmc_card_manfid(card), mmc_card_name(card));
+	}
 	/* FIH, add for emmcinfo { */
 	if (0 == strcmp("mmcblk0", md->disk->disk_name))
 	{
@@ -4458,6 +4461,8 @@ static int mmc_blk_probe(struct mmc_card *card)
 
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
 	mmc_set_bus_resume_policy(card->host, 1);
+	pr_debug("%s: enabling deferred resume !!!\n",
+			mmc_hostname(card->host));
 #endif
 	if (mmc_add_disk(md))
 		goto out;

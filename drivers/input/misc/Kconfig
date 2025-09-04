@@ -372,6 +372,18 @@ config INPUT_KEYCHORD
 	  To compile this driver as a module, choose M here: the
 	  module will be called keychord.
 
+
+config STMVL53L0X
+        tristate "STM VL53L0X Ranging Sensor"
+        depends on I2C
+        help
+	  Say Y here if you want to enable the key chord driver
+          This is a Time-of-Flight (ToF) laser-ranging sensor, provide
+	  the distance from obstacle.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called vl5310x.
+
 config INPUT_KEYSPAN_REMOTE
 	tristate "Keyspan DMR USB remote control"
 	depends on USB_ARCH_HAS_HCD
@@ -823,5 +835,9 @@ config DOUBLE_TAP
 	depends on SENSORS_BMA2X2  && ( SENSORS_BMA2X2_ENABLE_INT1 || SENSORS_BMA2X2_ENABLE_INT2)
 	help
 	 If you say yes here, you get support Bosch double tap sensor function
+
+config INPUT_FIH_SENSORS_LTR557
+	tristate "LTR557 Proximity LIGHT Sensor Driver support"
+	default n
 
 endif

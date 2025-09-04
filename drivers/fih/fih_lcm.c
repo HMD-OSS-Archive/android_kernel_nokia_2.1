@@ -7,23 +7,15 @@
 #include <linux/uaccess.h>
 
 
-#if 0
 extern int CE_enable;
 extern int CT_enable;
 extern int CABC_enable;
-#else
-static int CE_enable = 1;
-static int CT_enable = 0;
-static int CABC_enable = 0;
-#endif
-
 #if 0
 extern int vddio_enable;	//SW4-HL-Display-PowerPinControlPinAndInitCodeAPI-00+_20150519
 extern int avdd_enable;		//SW4-HL-Display-PowerPinControlPinAndInitCodeAPI-00+_20150519
 extern int avee_enable;		//SW4-HL-Display-PowerPinControlPinAndInitCodeAPI-00+_20150519
 #endif
 
-#if 0
 extern int fih_get_ce (void);
 extern int fih_set_ce (int ce);
 extern int fih_get_ct (void);
@@ -33,53 +25,7 @@ extern int fih_set_cabc (int cabc);
 extern void fih_get_read_reg (char *reg_val);	//SW4-HL-Display-DynamicReadWriteRegister-00+_20160729
 extern void fih_set_read_reg (unsigned int reg, unsigned int reg_len);	//SW4-HL-Display-DynamicReadWriteRegister-00+_20160729
 extern void fih_set_write_reg (unsigned int len, char *data);	//SW4-HL-Display-DynamicReadWriteRegister-00+_20160729
-#else
-static int fih_get_ce(void)
-{
-	return 0;
-}
-
-static int fih_set_ce(int ce)
-{
-	return 0;
-}
-
-static int fih_get_ct(void)
-{
-	return 0;
-}
-
-static int fih_set_ct(int ct)
-{
-	return 0;
-}
-
-static int fih_get_cabc(void)
-{
-	return 0;
-}
-
-static int fih_set_cabc(int cabc)
-{
-	return 0;
-}
-
-static void fih_get_read_reg(char *reg_val)
-{
-	return;
-}
-
-static void fih_set_read_reg(unsigned int reg, unsigned int reg_len)
-{
-	return;
-}
-
-static void fih_set_write_reg(unsigned int len, char *data)
-{
-	return;
-}
-
-#endif
+extern void fih_get_color_data (char *color_data);	//FIHTDC - gatycclu - OC6 - Show panel color data
 
 #if 0
 extern int fih_get_vddio (void);		//SW4-HL-Display-PowerPinControlPinAndInitCodeAPI-00+_20150519
@@ -95,6 +41,61 @@ extern int fih_set_init (int reset);		//SW4-HL-Display-PowerPinControlPinAndInit
 extern int fih_get_ldos (void);		//SW4-HL-Display-PowerPinControlPinAndInitCodeAPI-00+_20150519
 extern int fih_set_ldos (int reset);	//SW4-HL-Display-PowerPinControlPinAndInitCodeAPI-00+_20150519
 #endif
+
+//FIHTDC - gatycclu - OC6 - Show panel color data{
+static int fih_lcm_read_color_data_lk(struct seq_file *m, void *v)
+{
+	char color_data[20]={0};
+	char * pch;
+
+	pch = strstr(saved_command_line, "androidboot.panel.color=");
+	pch += strlen("androidboot.panel.color=");
+	strncpy(color_data, pch, 14);
+
+	seq_printf(m, "%s\n", color_data);
+
+	return 0;
+}
+
+static int fih_lcm_color_data_open_lk(struct inode *inode, struct file *file)
+{
+	return single_open(file, fih_lcm_read_color_data_lk, NULL);
+};
+
+static struct file_operations color_data_lk_file_ops = {
+	.owner   = THIS_MODULE,
+	.open    = fih_lcm_color_data_open_lk,
+	.read    = seq_read,
+	.write	 = NULL,
+	.llseek  = seq_lseek,
+	.release = single_release
+};
+
+static int fih_lcm_read_color_data(struct seq_file *m, void *v)
+{
+	char color_data[20]={0};
+
+	fih_get_color_data(color_data);
+
+	seq_printf(m, "%s", color_data);
+
+	return 0;
+}
+
+static int fih_lcm_color_data_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, fih_lcm_read_color_data, NULL);
+};
+
+static struct file_operations color_data_file_ops = {
+	.owner   = THIS_MODULE,
+	.open    = fih_lcm_color_data_open,
+	.read    = seq_read,
+	.write	 = NULL,
+	.llseek  = seq_lseek,
+	.release = single_release
+};
+//FIHTDC - gatycclu - OC6 - Show panel color data}
 
 static int fih_lcm_read_color_mode(struct seq_file *m, void *v)
 {
@@ -364,7 +365,7 @@ static struct file_operations reg_write_file_ops = {
 //SW4-HL-Display-DynamicReadWriteRegister-00+}_20160729
 
 //SW4-HL-Display-AckErrCountAndStatus-00+{_20161014
-char fih_awer_cnt[32] = "none";
+char fih_awer_cnt[32] = "unknown";
 void fih_awer_cnt_set(char *info)
 {
 	strcpy(fih_awer_cnt, info);
@@ -388,7 +389,7 @@ static struct file_operations awer_cnt_operations = {
 	.release	= seq_release,
 };
 
-char fih_awer_status[32] = "none";
+char fih_awer_status[32] = "unknown";
 void fih_awer_status_set(char *info)
 {
 	strcpy(fih_awer_status, info);
@@ -710,6 +711,12 @@ struct {
 	{NULL}, },
 	LCM0_awer_status[] = {
 	{"AllHWList/LCM0/awer_status", &awer_status_operations},
+	{NULL}, },
+	LCM0_color_data[] = {  //FIHTDC - gatycclu - OC6 - Show panel color data
+	{"AllHWList/LCM0/color_data", &color_data_file_ops},
+	{NULL}, },
+	LCM0_color_data_lk[] = {  ////FIHTDC - gatycclu - OC6 - Show panel color data
+	{"AllHWList/LCM0/color_data_lk", &color_data_lk_file_ops},
 	#if 0
 	{NULL}, },
 	//SW4-HL-Display-PowerPinControlPinAndInitCodeAPI-00+{_20150519
@@ -815,6 +822,24 @@ static int __init fih_lcm_init(void)
 	pr_debug("\n\n*** [HL] %s, succeed to create proc/%s ***\n\n", __func__, LCM0_awer_status->name);
 	//SW4-HL-Display-AckErrCountAndStatus-00+}_20161014
 
+//FIHTDC - gatycclu - OC6 - Show panel color data{
+	if(fih_hwid_fetch(FIH_HWID_PRJ) == FIH_PRJ_OC6) {
+		ent = proc_create((LCM0_color_data->name) + 15, 0, lcm0_dir, LCM0_color_data->ops);
+		if (ent == NULL)
+		{
+			pr_err("\n\nUnable to create /proc/%s", LCM0_color_data->name);
+		}
+		pr_debug("\n\n*** [HL] %s, succeed to create proc/%s ***\n\n", __func__, LCM0_color_data->name);
+
+		ent = proc_create((LCM0_color_data_lk->name) + 15, 0, lcm0_dir, LCM0_color_data_lk->ops);
+		if (ent == NULL)
+		{
+			pr_err("\n\nUnable to create /proc/%s", LCM0_color_data_lk->name);
+		}
+		pr_debug("\n\n*** [HL] %s, succeed to create proc/%s ***\n\n", __func__, LCM0_color_data_lk->name);
+	}
+//FIHTDC - gatycclu - OC6 - Show panel color data}
+
 	#if 0
 	//SW4-HL-Display-PowerPinControlPinAndInitCodeAPI-00+{_20150519
 	if (vddio_enable)
@@ -899,7 +924,12 @@ static void __exit fih_lcm_exit(void)
 	remove_proc_entry(LCM0_awer_cnt->name, NULL);
 	remove_proc_entry(LCM0_awer_status->name, NULL);
 	//SW4-HL-Display-AckErrCountAndStatus-00+}_20161014
-
+//FIHTDC - gatycclu - OC6 - Show panel color data{
+	if(fih_hwid_fetch(FIH_HWID_PRJ) == FIH_PRJ_OC6) {
+		remove_proc_entry(LCM0_color_data->name, NULL);
+		remove_proc_entry(LCM0_color_data_lk->name, NULL);
+	}
+//FIHTDC - gatycclu - OC6 - Show panel color data}
 	#if 0
 	//SW4-HL-Display-AddCTCPanelHX8394FInsideSupport-01+{_20150522
 	if (vddio_enable)

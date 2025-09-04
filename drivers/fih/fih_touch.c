@@ -22,7 +22,6 @@
 #define FIH_PROC_TP_GESTURE  "AllHWList/tp_gesture"
 #define FIH_PROC_TP_GESTURE_AVAILABLE  "AllHWList/tp_gesture_available"
 #define FIH_PROC_TOUCH_PATH  "AllHWList/Touch"
-#define FIH_PROC_FQC_SELF_TEST	"touch"
 //Win add for ALT use
 #define FIH_PROC_TP_ALT_RST	"AllHWList/tp_alt_rst"
 #define FIH_PROC_TP_ALT_ST_COUNT	"AllHWList/tp_alt_st_count"
@@ -30,7 +29,6 @@
 #define FIH_PROC_TP_ALT_ST_DISABLE	"AllHWList/tp_alt_st_disable"
 //Win add for ALT use
 
-/*
 extern bool ResultSelfTest;
 extern void touch_selftest(void);
 extern void touch_tpfwver_read(char *);
@@ -45,13 +43,12 @@ extern void touch_vendor_read(char *);
 extern void touch_gesture_write(int);
 extern int touch_gesture_read(void);
 extern int touch_gesture_available_read(void);
-extern void touch_gesture_available_write(long);
+extern int touch_gesture_available_write(long);
 //win add for ALT test
 extern void touch_alt_rst(int);
 extern int touch_alt_st_count(int);
 extern void touch_alt_st_enable(int);
 //win add for ALT test
-*/
 
 struct fih_touch_cb touch_cb = {
 	.touch_selftest	= NULL,
@@ -82,14 +79,7 @@ void fih_info_set_touch(char *info)
 
 static int fih_touch_read_show(struct seq_file *m, void *v)
 {
-	char fwver[30]={0};
-
-	if(touch_cb.touch_tpfwver_read != NULL)
-	{
-		pr_info("F@Touch Read Touch Firmware Version\n");
-		touch_cb.touch_tpfwver_read(fwver);
-		seq_printf(m, "%s", fwver);
-	}
+	seq_printf(m, "%s\n", fih_touch);
 	return 0;
 }
 
@@ -127,7 +117,7 @@ static ssize_t fih_touch_self_test_proc_write(struct file *file, const char __us
 {
 	if(touch_cb.touch_selftest != NULL)
 	{
-		pr_info("F@Touch Do Touch Selftest\n");
+	pr_info("F@Touch Do Touch Selftest\n");
 		touch_cb.touch_selftest();
 	}
 	return count;
@@ -151,7 +141,7 @@ static int fih_touch_read_fwver_show(struct seq_file *m, void *v)
 	{
 		pr_info("F@Touch Read Touch Firmware Version\n");
 		touch_cb.touch_tpfwver_read(fwver);
-		seq_printf(m, "%s", fwver);
+	seq_printf(m, "%s", fwver);
 	}
 	return 0;
 }
@@ -178,7 +168,7 @@ static int fih_touch_read_fwimver_show(struct seq_file *m, void *v)
 	{
 		pr_info("F@Touch Read Touch Firmware Image Version\n");
 		touch_cb.touch_tpfwimver_read(fwimver);
-		seq_printf(m, "%s", fwimver);
+	seq_printf(m, "%s", fwimver);
 	}
 	return 0;
 }
@@ -624,21 +614,16 @@ static int __init fih_touch_init(void)
 	if(tp_probe_success)	//SW4-HL-TouchPanel-AccordingToTPDriverProbeResultToDecideWhetherToCreateVirtualFileOrNot-00+_20151130
 	{
 		pr_err("panel probe success, create proc file\n");
-		if (proc_create(FIH_PROC_FQC_SELF_TEST, 0666, NULL, &touch_self_test_proc_file_ops) == NULL)
-		{
-			pr_err("failt to create %s for FQC selftest\n", FIH_PROC_FQC_SELF_TEST);
-		}
-
 		//F@Touch Self Test
 		if (proc_create(FIH_PROC_TP_SELF_TEST, 0, NULL, &touch_self_test_proc_file_ops) == NULL)
-		{
-			proc_mkdir(FIH_PROC_DIR, NULL);
-			if (proc_create(FIH_PROC_TP_SELF_TEST, 0, NULL, &touch_self_test_proc_file_ops) == NULL)
-			{
-				pr_err("fail to create proc/%s\n", FIH_PROC_TP_SELF_TEST);
-				return (1);
-			}
-		}
+        {
+            proc_mkdir(FIH_PROC_DIR, NULL);
+            if (proc_create(FIH_PROC_TP_SELF_TEST, 0, NULL, &touch_self_test_proc_file_ops) == NULL)
+            {
+			pr_err("fail to create proc/%s\n", FIH_PROC_TP_SELF_TEST);
+			return (1);
+            }
+        }
 
 		//F@Touch Read IC's firmware version
 		if (proc_create(FIH_PROC_TP_IC_FW_VER, 0, NULL, &touch_fwver_proc_file_ops) == NULL)
@@ -728,7 +713,7 @@ static void __exit fih_touch_exit(void)
 {
 	if(tp_probe_success)	//SW4-HL-TouchPanel-AccordingToTPDriverProbeResultToDecideWhetherToCreateVirtualFileOrNot-00+_20151130
 	{
-		remove_proc_entry(FIH_PROC_TP_SELF_TEST, NULL);
+		//remove_proc_entry(FIH_PROC_TP_SELF_TEST, NULL);
 		remove_proc_entry(FIH_PROC_TP_IC_FW_VER, NULL);
 		remove_proc_entry(FIH_PROC_TP_FILE_FW_FW, NULL);
 		remove_proc_entry(FIH_PROC_TP_UPGRADE, NULL);

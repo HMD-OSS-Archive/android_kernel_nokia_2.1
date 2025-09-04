@@ -133,7 +133,12 @@ static ssize_t power_supply_show_property(struct device *dev,
 					"%s\n", health_text[value.intval]);
 	else if (off >= POWER_SUPPLY_PROP_MODEL_NAME)
 		return sprintf(buf, "%s\n", value.strval);
-
+// FIHTDC, IdaChiang, add for Reverse current position (negtive to positive) {{
+	if (off == POWER_SUPPLY_PROP_CURRENT_NOW){
+		if(strstr(psy->name, "battery")!=NULL)
+			return sprintf(buf, "%d\n", ((-1)*(value.intval)));
+	}
+// FIHTDC, IdaChiang, add for Reverse current position (negtive to positive) {{
 	if (off == POWER_SUPPLY_PROP_CHARGE_COUNTER_EXT)
 		return sprintf(buf, "%lld\n", value.int64val);
 	else
@@ -231,7 +236,6 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(scope),
 	POWER_SUPPLY_ATTR(charge_term_current),
 	POWER_SUPPLY_ATTR(calibrate),
-	POWER_SUPPLY_ATTR(real_status),
 	/* Local extensions */
 	POWER_SUPPLY_ATTR(usb_hc),
 	POWER_SUPPLY_ATTR(usb_otg),

@@ -296,6 +296,8 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 static void dapm_kcontrol_free(struct snd_kcontrol *kctl)
 {
 	struct dapm_kcontrol_data *data = snd_kcontrol_chip(kctl);
+
+	list_del(&data->paths);
 	kfree(data->wlist);
 	kfree(data);
 }
@@ -811,7 +813,7 @@ static int dapm_new_mux(struct snd_soc_dapm_widget *w)
 	if (w->id == snd_soc_dapm_mux) {
 		list_for_each_entry(path, &w->sources, list_sink) {
 			if (path->name)
-				dapm_kcontrol_add_path(w->kcontrols[0], path);
+		dapm_kcontrol_add_path(w->kcontrols[0], path);
 		}
 	} else {
 		list_for_each_entry(path, &w->sinks, list_source) {

@@ -789,8 +789,11 @@ int msm_camera_get_dt_gpio_set_tbl(struct device_node *of_node,
 	uint32_t count = 0;
 	uint32_t *val_array = NULL;
 
-	if (!of_get_property(of_node, "qcom,gpio-set-tbl-num", &count))
+	rc = of_property_read_u32(of_node, "qcom,gpio-set-tbl-num", &count);
+	if (rc < 0) {
+		pr_err("%s failed %d\n", __func__, __LINE__);
 		return 0;
+	}
 
 	count /= sizeof(uint32_t);
 	if (!count) {
@@ -1794,9 +1797,10 @@ int msm_camera_power_down(struct msm_camera_power_ctrl_t *ctrl,
 					pr_err("%s:%d:seq_val:%d > num_vreg: %d\n",
 						__func__, __LINE__, pd->seq_val,
 						ctrl->num_vreg);
-			} else
+			} else {
 				pr_err("%s error in power up/down seq data\n",
 								__func__);
+			}
 			ret = msm_cam_sensor_handle_reg_gpio(pd->seq_val,
 				ctrl->gpio_conf, GPIOF_OUT_INIT_LOW);
 			if (ret < 0)

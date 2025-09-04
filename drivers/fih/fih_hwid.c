@@ -22,9 +22,9 @@ struct st_hwid_table def_hwid_table = {
 	.r2 = 0,
 	.r3 = 0,
 	/* info */
-	.prj = FIH_PRJ_E2M,
-	.rev = FIH_REV_EVT1,
-	.rf  = FIH_BAND_G_900_1800_W_1_8_L_1_3_5_40_41,
+	.prj = FIH_PRJ_D1C,
+	.rev = FIH_REV_EVB,
+	.rf  = FIH_RF_G_850_900_1800_1900_W_1_2_5_8_C_0_T_34_39_L_1_3_5_38_39_40_41,
 	/* device tree */
 	.dtm = 1,
 	.dtn = 1,
@@ -37,20 +37,6 @@ void fih_hwid_setup(void)
 	memcpy(&fih_hwid_table, &def_hwid_table, sizeof(struct st_hwid_table));
 #else
 	struct st_hwid_table *mem_hwid_table = (struct st_hwid_table *)ioremap(FIH_HWID_ADDR, sizeof(struct st_hwid_table));
-	#if (0)
-	struct st_hwid_table *tb = mem_hwid_table;
-	printk("FIH_HWID_ADDR = 0x%x\n", FIH_HWID_ADDR);
-	printk("R1 = %d\n", tb->r1);
-	printk("R2 = %d\n", tb->r2);
-	printk("R3 = %d\n", tb->r3);
-	/* info */
-	printk("PROJECT = %d\n", tb->prj);
-	printk("HW_REV = %d\n", tb->rev);
-	printk("RF_BAND = %d\n", tb->rf);
-	/* device tree */
-	printk("DT_MAJOR = %d\n", tb->dtm);
-	printk("DT_MINOR = %d\n", tb->dtn);
-	#endif
 	if (mem_hwid_table == NULL) {
 		pr_err("%s: setup hwid table by default coded because load fail\n", __func__);
 		memcpy(&fih_hwid_table, &def_hwid_table, sizeof(struct st_hwid_table));

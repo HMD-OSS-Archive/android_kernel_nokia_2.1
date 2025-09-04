@@ -10,10 +10,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+	
 #include <linux/kernel.h>
 #include <linux/debugfs.h>
-
+	
 #include <linux/string.h>
 #include <linux/sysfs.h>
 #include <linux/module.h>
@@ -57,11 +57,11 @@ ssize_t fih_dt_proc_write(struct file *file, const char  __user *buffer,
 
 	if(count <=2)
 	{
-		pr_info("input node is NULL \n");
+		pr_info("input node is NULL \n"); 
 		return -EFAULT;
 	}
 
-	if ( copy_from_user(pp_name, buffer, count) )
+	if ( copy_from_user(pp_name, buffer, count) ) 
 	{
 		pr_info("copy_from_user fail\n");
 		   return -EFAULT;
@@ -73,7 +73,7 @@ ssize_t fih_dt_proc_write(struct file *file, const char  __user *buffer,
 	if(ret_data==NULL)
 		pr_err("value = NULL \n");
 	else
-		pr_err("value = %s \n", ret_data);
+		pr_err("value = %s \n", ret_data); 
 
 	return count;
 }
@@ -117,7 +117,7 @@ static int __init fih_dt_init(void)
 
 static void __exit fih_dt_exit(void)
 {
-	remove_proc_entry("dt_info", NULL);
+	remove_proc_entry("dt_info", NULL);	
 	pr_info("dt_info module is unloaded\n");
 }
 

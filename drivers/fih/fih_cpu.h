@@ -21,4 +21,8 @@
 
 #define HW_REV_ES 0x00
 
+#ifdef CONFIG_FIH_PROJECT_E2M
+void fih_cpu_init_info(const char *data);
+#endif
+
 #endif /* __FIH_CPU_H */

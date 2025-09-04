@@ -17,10 +17,11 @@
 #include "msm_sd.h"
 #include "msm_cci.h"
 #include "msm_eeprom.h"
+//misty E2MP camera porting++
 #include <linux/kprobes.h>
 #include <asm/traps.h>
 #include <linux/delay.h>
-
+//misty E2MP camera porting--
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
@@ -56,6 +57,7 @@ static int msm_get_read_mem_size
 				eeprom_map->memory_map_size);
 			return -EINVAL;
 		}
+//misty E2MP camera porting++
 		for (i = 0; i < eeprom_map->memory_map_size; i++) {
 			if ((eeprom_map->mem_settings[i].i2c_operation ==
 				MSM_CAM_READ) ||
@@ -66,6 +68,7 @@ static int msm_get_read_mem_size
 				size += eeprom_map->mem_settings[i].reg_data;
 			}
 		}
+//misty E2MP camera porting--
 	}
 	CDBG("Total Data Size: %d\n", size);
 	return size;
@@ -329,19 +332,17 @@ ERROR:
   *
   * Returns success or failure
   */
-
-
-
 static int eeprom_parse_memory_map(struct msm_eeprom_ctrl_t *e_ctrl,
 	struct msm_eeprom_memory_map_array *eeprom_map_array)
 {
+//misty E2MP camera porting++
 	int rc =  0, i, j, gc,s5k;
 	uint8_t *memptr;
 
 	uint16_t gc_read = 0;
 	uint16_t s5k_read = 0;
 	uint16_t s5k_addr = 0x0A04;
-
+//misty E2MP camera porting--
 
 	struct msm_eeprom_mem_map_t *eeprom_map;
 
@@ -374,7 +375,6 @@ static int eeprom_parse_memory_map(struct msm_eeprom_ctrl_t *e_ctrl,
 		for (i = 0; i < eeprom_map->memory_map_size; i++) {
 			switch (eeprom_map->mem_settings[i].i2c_operation) {
 			case MSM_CAM_WRITE: {
-
 				e_ctrl->i2c_client.addr_type =
 					eeprom_map->mem_settings[i].addr_type;
 				rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(
@@ -423,6 +423,7 @@ static int eeprom_parse_memory_map(struct msm_eeprom_ctrl_t *e_ctrl,
 				memptr += eeprom_map->mem_settings[i].reg_data;
 			}
 			break;
+//misty E2MP camera porting++
 			case MSM_CAM_READ_GC5025:
 			case MSM_CAM_READ_GC5025A: { /*add for gc5025 & gc5025a*/
 				e_ctrl->i2c_client.addr_type = 1;
@@ -546,6 +547,7 @@ static int eeprom_parse_memory_map(struct msm_eeprom_ctrl_t *e_ctrl,
 				pr_err("%s: %d Invalid i2c operation LC:%d, op: %d\n",
 					__func__, __LINE__, i, eeprom_map->mem_settings[i].i2c_operation);
 				return -EINVAL;
+//misty E2MP camera porting--
 			}
 		}
 	}
@@ -793,7 +795,7 @@ static int msm_eeprom_config(struct msm_eeprom_ctrl_t *e_ctrl,
 		if (e_ctrl->userspace_probe == 0) {
 			pr_err("%s:%d Eeprom already probed at kernel boot",
 				__func__, __LINE__);
-			rc = -EINVAL;
+			rc = 0;
 			break;
 		}
 		if (e_ctrl->cal_data.num_data == 0) {
@@ -1654,7 +1656,7 @@ static int msm_eeprom_config32(struct msm_eeprom_ctrl_t *e_ctrl,
 		if (e_ctrl->userspace_probe == 0) {
 			pr_err("%s:%d Eeprom already probed at kernel boot",
 				__func__, __LINE__);
-			rc = -EINVAL;
+			rc = 0;
 			break;
 		}
 		if (e_ctrl->cal_data.num_data == 0) {
@@ -1827,7 +1829,7 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 		CDBG("qcom,i2c_freq_mode %d, rc %d\n",
 			e_ctrl->i2c_freq_mode, rc);
 		if (rc < 0) {
-			pr_err("%s qcom,i2c-freq-mode read fail. Setting to 0 %d\n",
+			pr_err("%s qcom,i2c-freq-mode read fail or not set. Setting to 0 (rc %d)\n",
 				__func__, rc);
 			e_ctrl->i2c_freq_mode = 0;
 		}

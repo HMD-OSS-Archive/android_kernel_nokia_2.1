@@ -36,10 +36,11 @@
 /*
  *
  */
-/*fihtdc@20150318, DanielYJ add ACDB dir information to /proc/asound/acdbdir START*/
+/*fihtdc@20150318, DanielYJ add ACDB dir information to /proc/asound/acdbdir START*/ 
 #define FIH_ACDB_DIR_SUPPORT
 static DEFINE_MUTEX(snd_card_mutex);
-/*fihtdc@20150318, DanielYJ add ACDB dir information to /proc/asound/acdbdir END*/
+/*fihtdc@20150318, DanielYJ add ACDB dir information to /proc/asound/acdbdir END*/ 
+
 
 #ifdef CONFIG_PROC_FS
 
@@ -1055,8 +1056,7 @@ static int __exit snd_info_version_done(void)
 	snd_info_free_entry(snd_info_version_entry);
 	return 0;
 }
-
-/*fihtdc@20150318, DanielYJ add ACDB dir information to /proc/asound/acdbdir START*/
+/*fihtdc@20150318, DanielYJ add ACDB dir information to /proc/asound/acdbdir START*/ 
 #ifdef FIH_ACDB_DIR_SUPPORT
 static struct snd_info_entry *snd_info_acdbdir_entry;
 
@@ -1099,6 +1099,6 @@ static int __exit snd_info_acdbdir_done(void)
 	return 0;
 }
 #endif
-/*fihtdc@20150318, DanielYJ add ACDB dir information to /proc/asound/acdbdir END*/
+/*fihtdc@20150318, DanielYJ add ACDB dir information to /proc/asound/acdbdir END*/ 
 
 #endif /* CONFIG_PROC_FS */

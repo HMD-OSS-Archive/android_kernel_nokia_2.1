@@ -239,12 +239,14 @@ struct msm_sensor_power_setting_array {
 };
 
 enum msm_camera_i2c_operation {
-        MSM_CAM_WRITE = 0,
-        MSM_CAM_POLL,
-        MSM_CAM_READ,
+	MSM_CAM_WRITE = 0,
+	MSM_CAM_POLL,
+	MSM_CAM_READ,
+//misty E2MP camera porting++
         MSM_CAM_READ_GC5025A,
         MSM_CAM_READ_S5K4H7,
         MSM_CAM_READ_GC5025,
+//miisty E2MP camera porting--
 };
 
 struct msm_sensor_i2c_sync_params {

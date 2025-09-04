@@ -8,7 +8,7 @@
 #include "fih_ramtable.h"
 #include "fih_hwcfg.h"
 #include "fih_auth_key.h"
-#include <linux/of.h>
+#include <linux/utsname.h>
 
 static unsigned int my_proc_addr = FIH_HWCFG_MEM_ADDR;
 static unsigned int my_proc_size = FIH_HWCFG_MEM_SIZE;
@@ -103,38 +103,6 @@ static struct file_operations bandinfo_file_ops = {
 	.release = single_release
 };
 
-static int fih_info_proc_read_rf_board_show(struct seq_file *m, void *v)
-{
-	struct device_node *root_node = NULL;
-	int ret = 0;
-	int board_id[2] = {0};
-	root_node = of_find_compatible_node(NULL, NULL, "qcom,msm8917");
-	if (!root_node) {
-		printk("Cannot find root node from dts\n");
-		seq_printf(m, "0x%X\n", board_id[0]);
-	}
-	else
-	{
-		ret = of_property_read_u32_array(root_node, "qcom,board-id", board_id,ARRAY_SIZE(board_id));
-		if(!ret)
-			seq_printf(m, "0x%X\n", board_id[0]);
-	}
-
-	return 0;
-}
-static int boardinfo_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fih_info_proc_read_rf_board_show, NULL);
-};
-
-static struct file_operations boardinfo_file_ops = {
-	.owner   = THIS_MODULE,
-	.open    = boardinfo_proc_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release
-};
-
 static int fih_info_proc_read_hwcfg_show(struct seq_file *m, void *v)
 {
 	struct st_hwid_table tb;
@@ -224,9 +192,20 @@ static struct file_operations hwmodel_file_ops = {
 
 static int fih_info_proc_read_fqc_xml_show(struct seq_file *m, void *v)
 {
-        struct st_hwid_table tb;
-        fih_hwid_read(&tb);
-	seq_printf(m, "system/etc/fqc_%s_E2M.xml\n", tb.r3 % 2 ? "ss" : "ds");
+	struct st_hwcfg_info *buf = (struct st_hwcfg_info *)ioremap(my_proc_addr, my_proc_size);
+
+	if (buf == NULL) {
+		seq_printf(m, "%s\n", "N/A");
+	}else {
+		if(strncmp(buf->project_name,"ND1",3)==0) {
+			seq_printf(m, "system/etc/fqc_%s_%s.xml\n",fih_hwcfg_match_pcba_description("dualsim")?"ds":"ss" ,buf->factory_name);
+		}else if(strncmp(buf->project_name,"PLE",3) == 0) {
+                    seq_printf(m, "system/etc/fqc_%s_%s.xml\n",fih_hwcfg_match_pcba_description("dualsim")?"ds":"ss","PLE");
+                 }else {
+	  		seq_printf(m, "system/etc/fqc_%s.xml\n", buf->factory_name);
+		}
+  	iounmap(buf);
+  }
 
 	return 0;
 }
@@ -318,8 +297,24 @@ static struct {
 	{"fqc_xml", &fqc_xml_file_ops},
 	{"SIMSlot", &simslot_file_ops},
 	{"iqiyi_auth_key", &iqiyi_file_ops},
-	{"boardinfo", &boardinfo_file_ops},
 	{NULL}, };
+
+//[MR][GAMEA][17_0147]Indonesia TKDN SW Requirements V1.0-13: Build Time Zone
+static void fih_info_version(void)
+{
+  char buffer_SKUID[16] = {'0'};
+  char *timezone = NULL;
+
+  printk("%s: SW version(skuid) = %s\n", __func__, buffer_SKUID);
+  if(strncmp(buffer_SKUID, "600ID", 5) == 0)
+  {
+    timezone = strstr(init_utsname()->version, "CST");
+    if(timezone != NULL)
+    {
+      memcpy(timezone, "WIB", 3);
+    }
+  }
+}
 
 static int __init fih_info_init(void)
 {
@@ -328,6 +323,8 @@ static int __init fih_info_init(void)
 			pr_err("fail to create proc/%s\n", p->name);
 		}
 	}
+
+	fih_info_version();
 
 	return (0);
 }

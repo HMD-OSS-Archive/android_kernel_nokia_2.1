@@ -148,7 +148,7 @@ static struct {
 static int __init fih_e2p_init(void)
 {
 	if (FIH_E2P_ST_SIZE < sizeof(FIH_E2P_DATA_ST)) {
-		pr_err("%s: WARNNING!! FIH_E2P_ST_SIZE (%d) < sizeof(FIH_E2P_DATA_ST) (%d)",
+		pr_err("%s: WARNNING!! FIH_E2P_ST_SIZE (%d) < sizeof(FIH_E2P_DATA_ST) (%lu)",
 			__func__, FIH_E2P_ST_SIZE, sizeof(FIH_E2P_DATA_ST));
 		return (1);
 	}

@@ -3,6 +3,28 @@
 #include <linux/string.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+
+#ifdef CONFIG_FIH_PROJECT_E2M
+#include <linux/of_fdt.h>
+
+#define FIH_PROC_DIR   "AllHWList"
+#define FIH_PROC_PATH  "AllHWList/cpuinfo"
+
+static char fih_proc_data[128] = "Qualcomm Technologies, Inc. MSM8917-PMI8940 MTP - E2M XXX";
+
+void fih_cpu_init_info(const char *data)
+{
+	memset(fih_proc_data, 0, sizeof(fih_proc_data));
+	sprintf(fih_proc_data, "%s", data);
+}
+
+static int fih_cpu_read_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%s\n", fih_proc_data);
+	return 0;
+}
+#else /* CONFIG_FIH_PROJECT_E2M */
+
 #include <linux/io.h>
 #include <linux/mm.h>
 #include "fih_cpu.h"
@@ -69,6 +91,7 @@ static int fih_cpu_read_show(struct seq_file *m, void *v)
 	seq_printf(m, "%s\n", msg);
 	return 0;
 }
+#endif
 
 static int cpuinfo_proc_open(struct inode *inode, struct file *file)
 {

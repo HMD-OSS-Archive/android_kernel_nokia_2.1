@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -64,7 +64,7 @@ static void scm_disable_sdi(void);
 * So the SDI cannot be re-enabled when it already by-passed.
 */
 // fihtdc, CurtisHCChi, 20151002, disable download_mode by default
-static int download_mode = 1/*1*/;
+static int download_mode = 0/*1*/;
 #else
 static const int download_mode;
 #endif
@@ -72,7 +72,6 @@ static const int download_mode;
 #ifdef CONFIG_MSM_DLOAD_MODE
 #define EDL_MODE_PROP "qcom,msm-imem-emergency_download_mode"
 #define DL_MODE_PROP "qcom,msm-imem-download_mode"
-#define CONFIG_FIH_EDL
 
 static int in_panic;
 static void *dload_mode_addr;
@@ -160,10 +159,10 @@ static bool get_dload_mode(void)
 	return dload_mode_enabled;
 }
 
-#ifdef CONFIG_FIH_EDL  // enable edl model for porting temp
+#if 0
 static void enable_emergency_dload_mode(void)
 {
-#if 1//def support_qcom_edl
+#ifdef support_qcom_edl
 	int ret;
 
 	if (emergency_dload_mode_addr) {
@@ -326,17 +325,14 @@ static void msm_restart_prepare(const char *cmd)
 
 	if (qpnp_pon_check_hard_reset_stored()) {
 		/* Set warm reset as true when device is in dload mode */
-		if (get_dload_mode()
-#ifdef CONFIG_FIH_EDL
-			||((cmd != NULL && cmd[0] != '\0') &&
-			!strcmp(cmd, "edl"))
-#endif
-			)
+		if (get_dload_mode() ||
+			((cmd != NULL && cmd[0] != '\0') &&
+			!strcmp(cmd, "edl")))
 			need_warm_reset = true;
 	} else {
 		need_warm_reset = (get_dload_mode() ||
 				((cmd != NULL && cmd[0] != '\0') &&
-				 strcmp(cmd, "userrequested")));
+				strcmp(cmd, "userrequested")));
 	}
 
 	/* Hard reset the PMIC unless memory contents must be maintained. */
@@ -347,7 +343,7 @@ static void msm_restart_prepare(const char *cmd)
 	}
 
 	if (cmd != NULL) {
-		//pr_info("%s: cmd = (%s)\n", __func__, cmd);
+		pr_info("%s: cmd = (%s)\n", __func__, cmd);
 		if (!strncmp(cmd, "bootloader", 10)) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_BOOTLOADER);
@@ -379,7 +375,7 @@ static void msm_restart_prepare(const char *cmd)
 			if (!ret)
 				__raw_writel(0x6f656d00 | (code & 0xff),
 					     restart_reason);
-#ifdef CONFIG_FIH_EDL  //enable for porting temp
+#if 0
 		} else if (!strncmp(cmd, "edl", 3)) {
 			enable_emergency_dload_mode();
 #endif
@@ -578,23 +574,8 @@ static size_t store_emmc_dload(struct kobject *kobj, struct attribute *attr,
 }
 RESET_ATTR(emmc_dload, 0644, show_emmc_dload, store_emmc_dload);
 
-static char fac_n[6] = {0};//true or false
-static int __init parse_fac_n_mode(char *line)
-{
-	strlcpy(fac_n, line, sizeof(fac_n));
-	return 1;
-}
-__setup("androidboot.fac_n=", parse_fac_n_mode);
-
-static ssize_t get_fac_n_mode(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return snprintf(buf, sizeof(fac_n), "%s", fac_n);
-}
-RESET_ATTR(fac_n, 0444, get_fac_n_mode, NULL);
-
 static struct attribute *reset_attrs[] = {
 	&reset_attr_emmc_dload.attr,
-	&reset_attr_fac_n.attr,
 	NULL
 };
 

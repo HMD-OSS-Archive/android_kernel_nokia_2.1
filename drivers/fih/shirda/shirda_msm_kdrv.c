@@ -35,7 +35,9 @@
 #include <linux/sysfs.h>
 
 #include <linux/moduleparam.h>
-
+///FIH For Power switch begin
+#include <linux/regulator/consumer.h>
+///FIH For Power switch end
 #include SHIRDA_CONFIG_H
 
 #include "sharp/irda_kdrv_api.h"
@@ -217,7 +219,7 @@ static struct wake_lock shirda_wlock_suspend;
 static struct wake_lock shirda_wlock_idle;
 #endif
 
-
+struct regulator *vio_irda, *vcc_irda;
 
 
 
@@ -715,6 +717,16 @@ static int shirda_set_uartdm_irda_enable(shirda_gsbi_mode mode)
 #ifdef	SHIRDA_DEBUG_ENTRY_POINT
 	IRDALOG_INFO("entry shirda_gsbi_mode = %d\n", mode);
 #endif
+///FIH For Power switch begin
+  //enable VREG_L5_1P8
+  ret = regulator_enable(vio_irda);
+  if(!ret)
+   IRDALOG_INFO("VREG_L5_1P8 regulator enable ok\n");
+  //enable VREG_L8_2P9
+  ret = regulator_enable(vcc_irda);
+  if(!ret)
+   IRDALOG_INFO("VREG_L8_2P9 regulator enable ok\n");
+///FIH For Power switch end
 	ret = shirda_clk_enable();
 	if (ret != 0) {
 		IRDALOG_FATAL("Fatal error! can't enable clk.\n");
@@ -767,13 +779,23 @@ uartdm_irda_ena_err:
 
 static void shirda_set_uartdm_irda_disable(void)
 {
+	int		ret = 0;
 	unsigned long lock_flag;
 	void __iomem *gsbi_irda = ioremap_nocache(SHIRDA_UART_DM_IRDA, 4);
 
 #ifdef	SHIRDA_DEBUG_ENTRY_POINT
 	IRDALOG_INFO("entry\n");
 #endif
-
+///FIH For Power switch begin
+//Disable VREG_L5_1P8
+  ret = regulator_disable(vio_irda);
+  if(!ret)
+   IRDALOG_INFO("VREG_L5_1P8 regulator disable ok\n");
+//Disable VREG_L8_2P9
+  ret = regulator_disable(vcc_irda);
+  if(!ret)
+   IRDALOG_INFO("VREG_L8_2P9 regulator disable ok\n");
+///FIH For Power switch end
 	if (shirda_clk_enable() != 0) {
 		IRDALOG_FATAL("Fatal error! can't enable clk.\n");
 		goto uartdm_irda_dis_err;
@@ -991,7 +1013,12 @@ static int __devinit shirda_driver_init(struct platform_device *pdev)
 		return ret;
 	}
 #endif
-
+///FIH For Power switch begin
+  //Get VREG_L5_1P8 from device tree
+  vio_irda = regulator_get(&pdev->dev, "vio_irda");
+  //Get VREG_L8_2P9 from device tree
+  vcc_irda = regulator_get(&pdev->dev, "vcc_irda");
+///FIH For Power switch end
 #ifdef	SHIRDA_DRV_USE_DEVICE_TREE
 	ret = shirda_gpio_init(pdev);
 #else

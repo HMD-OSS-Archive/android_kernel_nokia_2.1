@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1393,7 +1393,8 @@ static int msm_tsens_get_temp(int sensor_client_id, unsigned long *temp)
 	bool last_temp_valid = false, last_temp2_valid = false;
 	bool last_temp3_valid = false;
 	struct tsens_tm_device *tmdev = NULL;
-	uint32_t sensor_hw_num = 0, idx = 0;
+	uint32_t idx = 0;
+	int sensor_hw_num = 0;
 	unsigned long flags;
 
 	tmdev = get_tsens_controller_for_client_id(sensor_client_id);
@@ -1529,6 +1530,9 @@ static int tsens_tz_get_temp(struct thermal_zone_device *thermal,
 		return -EINVAL;
 
 	rc = msm_tsens_get_temp(tm_sensor->sensor_client_id, temp);
+	if (rc && (rc != -EPROBE_DEFER)) {
+		printk("BBox::UEC;22::7\n");
+	}
 	if (rc)
 		return rc;
 
@@ -5917,6 +5921,7 @@ static int tsens_thermal_zone_register(struct tsens_tm_device *tmdev)
 				"tsens_interrupt", tmdev);
 		if (rc < 0) {
 			pr_err("%s: request_irq FAIL: %d\n", __func__, rc);
+			printk("BBox::UEC;22::6\n");
 			for (i = 0; i < tmdev->tsens_num_sensor; i++)
 				thermal_zone_device_unregister(
 					tmdev->sensor[i].tz_dev);
@@ -5931,6 +5936,7 @@ static int tsens_thermal_zone_register(struct tsens_tm_device *tmdev)
 			"tsens_critical_interrupt", tmdev);
 		if (rc < 0) {
 			pr_err("%s: request_irq FAIL: %d\n", __func__, rc);
+			printk("BBox::UEC;22::6\n");
 			for (i = 0; i < tmdev->tsens_num_sensor; i++)
 				thermal_zone_device_unregister(
 					tmdev->sensor[i].tz_dev);
@@ -5953,6 +5959,7 @@ static int tsens_thermal_zone_register(struct tsens_tm_device *tmdev)
 			"tsens_interrupt", tmdev);
 		if (rc < 0) {
 			pr_err("%s: request_irq FAIL: %d\n", __func__, rc);
+			printk("BBox::UEC;22::6\n");
 			for (i = 0; i < tmdev->tsens_num_sensor; i++)
 				thermal_zone_device_unregister(
 					tmdev->sensor[i].tz_dev);
@@ -5988,6 +5995,7 @@ static int _tsens_register_thermal(void)
 		rc = tsens_thermal_zone_register(tmdev);
 		if (rc) {
 			pr_err("Error registering the thermal zone\n");
+			printk("BBox::UEC;22::4\n");
 			return rc;
 		}
 	}

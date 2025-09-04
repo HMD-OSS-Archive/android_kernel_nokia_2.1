@@ -28,7 +28,7 @@
 #include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/idr.h>
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_FIH_DEBUG_FS_SUBSYS
 #include <linux/debugfs.h>
 #endif
 #include <linux/interrupt.h>
@@ -177,7 +177,7 @@ struct subsys_device {
 	bool keep_alive;
 	int crash_count;
 	struct subsys_soc_restart_order *restart_order;
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_FIH_DEBUG_FS_SUBSYS
 	struct dentry *dentry;
 #endif
 	bool do_ramdump_on_put;
@@ -713,13 +713,16 @@ static int subsystem_powerup(struct subsys_device *dev, void *data)
 	if (ret < 0) {
 		notify_each_subsys_device(&dev, 1, SUBSYS_POWERUP_FAILURE,
 								NULL);
-		if (!dev->desc->ignore_ssr_failure)
+		if (system_state == SYSTEM_RESTART
+			|| system_state == SYSTEM_POWER_OFF)
+			WARN(1, "SSR aborted: %s, system reboot/shutdown is under way\n",
+				name);
+		else if (!dev->desc->ignore_ssr_failure)
 			panic("[%s:%d]: Powerup error: %s!",
 				current->comm, current->pid, name);
-		else {
+		else
 			pr_err("Powerup failure on %s\n", name);
-			return ret;
-		}
+		return ret;
 	}
 	enable_all_irqs(dev);
 
@@ -1263,7 +1266,7 @@ void notify_proxy_unvote(struct device *device)
 		notify_each_subsys_device(&dev, 1, SUBSYS_PROXY_UNVOTE, NULL);
 }
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_FIH_DEBUG_FS_SUBSYS
 static ssize_t subsys_debugfs_read(struct file *filp, char __user *ubuf,
 		size_t cnt, loff_t *ppos)
 {
@@ -1778,7 +1781,7 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
 
 	mutex_init(&subsys->track.lock);
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_FIH_DEBUG_FS_SUBSYS
 	ret = subsys_debugfs_add(subsys);
 	if (ret)
 		goto err_debugfs;
@@ -1847,7 +1850,7 @@ err_setup_irqs:
 	if (ofnode)
 		subsys_remove_restart_order(ofnode);
 err_register:
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_FIH_DEBUG_FS_SUBSYS
 	subsys_debugfs_remove(subsys);
 err_debugfs:
 #endif
@@ -1879,7 +1882,7 @@ void subsys_unregister(struct subsys_device *subsys)
 		WARN_ON(subsys->count);
 		device_unregister(&subsys->dev);
 		mutex_unlock(&subsys->track.lock);
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_FIH_DEBUG_FS_SUBSYS
 		subsys_debugfs_remove(subsys);
 #endif
 		subsys_char_device_remove(subsys);
@@ -1928,7 +1931,7 @@ static int __init subsys_restart_init(void)
 	if (ret)
 		goto err_bus;
 
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_FIH_DEBUG_FS_SUBSYS
 	ret = subsys_debugfs_init();
 	if (ret)
 		goto err_debugfs;
@@ -1951,7 +1954,7 @@ static int __init subsys_restart_init(void)
 err_soc:
 	class_destroy(char_class);
 err_class:
-#ifdef CONFIG_DEBUG_FS
+#ifdef CONFIG_FIH_DEBUG_FS_SUBSYS
 	subsys_debugfs_exit();
 err_debugfs:
 #endif

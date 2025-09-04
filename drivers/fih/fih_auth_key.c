@@ -5,6 +5,13 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include "fih_auth_key.h"
+static int scsi_set_adb_root;
+
+bool scsi_adb_root_flag(void)
+{
+	return scsi_set_adb_root;
+}
+EXPORT_SYMBOL(scsi_adb_root_flag);
 
 int read_ef(struct manuf_iqiyi_auth_key * rdata)
 {

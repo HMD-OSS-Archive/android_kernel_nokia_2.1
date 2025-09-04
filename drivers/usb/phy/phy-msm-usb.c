@@ -98,7 +98,7 @@
 
 #define SDP_CURRENT_UA 500000
 #define CDP_CURRENT_UA 1500000
-#define DCP_CURRENT_UA 2000000
+#define DCP_CURRENT_UA 1500000
 #define HVDCP_CURRENT_UA 3000000
 
 enum msm_otg_phy_reg_mode {
@@ -1499,6 +1499,7 @@ phcd_retry:
 
 	if (motg->lpm_flags & PHY_RETENTIONED ||
 		(motg->caps & ALLOW_VDD_MIN_WITH_RETENTION_DISABLED)) {
+		regulator_disable(hsusb_vdd);
 		msm_hsusb_config_vddcx(0);
 	}
 
@@ -1592,6 +1593,8 @@ static int msm_otg_resume(struct msm_otg *motg)
 	if (motg->host_bus_suspend || motg->device_bus_suspend)
 	disable_irq(motg->irq);
 // FIHTDC, IdaChiang, modify for QC 02786627 }}
+	if (motg->phy_irq)
+		disable_irq(motg->phy_irq);
 	wake_lock(&motg->wlock);
 
 	/*
@@ -1635,6 +1638,8 @@ static int msm_otg_resume(struct msm_otg *motg)
 	if (motg->lpm_flags & PHY_RETENTIONED ||
 		(motg->caps & ALLOW_VDD_MIN_WITH_RETENTION_DISABLED)) {
 		msm_hsusb_config_vddcx(1);
+		ret = regulator_enable(hsusb_vdd);
+		WARN(ret, "hsusb_vdd LDO enable failed\n");
 		msm_otg_disable_phy_hv_int(motg);
 		msm_otg_exit_phy_retention(motg);
 		motg->lpm_flags &= ~PHY_RETENTIONED;
@@ -1717,6 +1722,8 @@ skip_phy_resume:
 		enable_irq(motg->async_int);
 		motg->async_int = 0;
 	}
+	if (motg->phy_irq)
+		enable_irq(motg->phy_irq);
 	enable_irq(motg->irq);
 
 	/* Enable ASYNC_IRQ only during LPM */
@@ -2018,6 +2025,8 @@ static void msm_otg_start_host(struct usb_otg *otg, int on)
 		msm_otg_perf_vote_update(motg, false);
 		pm_qos_remove_request(&motg->pm_qos_req_dma);
 
+		pm_runtime_disable(&hcd->self.root_hub->dev);
+		pm_runtime_barrier(&hcd->self.root_hub->dev);
 		usb_remove_hcd(hcd);
 		msm_otg_reset(&motg->phy);
 
@@ -3064,10 +3073,10 @@ static void msm_otg_sm_work(struct work_struct *w)
 			msm_otg_start_peripheral(otg, 0);
 			msm_otg_dbg_log_event(&motg->phy, "RT PM: B_PERI A PUT",
 				get_pm_runtime_counter(dev), 0);
-			/* _put for _get done on cable connect in B_IDLE */
-			pm_runtime_put_noidle(dev);
 			/* Schedule work to finish cable disconnect processing*/
 			otg->phy->state = OTG_STATE_B_IDLE;
+			/* _put for _get done on cable connect in B_IDLE */
+			pm_runtime_put_noidle(dev);
 			work = 1;
 		} else if (test_bit(A_BUS_SUSPEND, &motg->inputs)) {
 			pr_debug("a_bus_suspend\n");
@@ -3846,23 +3855,23 @@ static int otg_power_set_property_usb(struct power_supply *psy,
 		switch (motg->usb_supply_type) {
 		case POWER_SUPPLY_TYPE_USB:
 			motg->chg_type = USB_SDP_CHARGER;
-			motg->voltage_max = MICRO_5V ;
+			motg->voltage_max = MICRO_5V;
 			motg->current_max = SDP_CURRENT_UA;
 			break;
 		case POWER_SUPPLY_TYPE_USB_DCP:
 			motg->chg_type = USB_DCP_CHARGER;
-			motg->voltage_max = MICRO_5V ;
+			motg->voltage_max = MICRO_5V;
 			motg->current_max = DCP_CURRENT_UA;
 			break;
 		case POWER_SUPPLY_TYPE_USB_HVDCP:
 			motg->chg_type = USB_DCP_CHARGER;
-			motg->voltage_max = MICRO_9V ;
+			motg->voltage_max = MICRO_9V;
 			motg->current_max = HVDCP_CURRENT_UA;
 			msm_otg_notify_charger(motg, hvdcp_max_current);
 			break;
 		case POWER_SUPPLY_TYPE_USB_CDP:
 			motg->chg_type = USB_CDP_CHARGER;
-			motg->voltage_max = MICRO_5V ;
+			motg->voltage_max = MICRO_5V;
 			motg->current_max = CDP_CURRENT_UA;
 			break;
 		case POWER_SUPPLY_TYPE_USB_ACA:

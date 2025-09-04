@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -354,10 +354,12 @@ static void msm_pm_set_timer(uint32_t modified_time_us)
 	hrtimer_start(&lpm_hrtimer, modified_ktime, HRTIMER_MODE_REL_PINNED);
 }
 
-int set_l2_mode(struct low_power_ops *ops, int mode, bool notify_rpm)
+int set_l2_mode(struct low_power_ops *ops, int mode,
+				struct lpm_cluster_level *level)
 {
 	int lpm = mode;
 	int rc = 0;
+	bool notify_rpm = level->notify_rpm;
 	struct low_power_ops *cpu_ops = per_cpu(cpu_cluster,
 			smp_processor_id())->lpm_dev;
 
@@ -369,7 +371,10 @@ int set_l2_mode(struct low_power_ops *ops, int mode, bool notify_rpm)
 	case MSM_SPM_MODE_STANDALONE_POWER_COLLAPSE:
 	case MSM_SPM_MODE_POWER_COLLAPSE:
 	case MSM_SPM_MODE_FASTPC:
-		cpu_ops->tz_flag = MSM_SCM_L2_OFF;
+		if (level->no_cache_flush)
+			cpu_ops->tz_flag = MSM_SCM_L2_GDHS;
+		else
+			cpu_ops->tz_flag = MSM_SCM_L2_OFF;
 		coresight_cti_ctx_save();
 		break;
 	case MSM_SPM_MODE_GDHS:
@@ -400,8 +405,10 @@ int set_l2_mode(struct low_power_ops *ops, int mode, bool notify_rpm)
 	return rc;
 }
 
-int set_l3_mode(struct low_power_ops *ops, int mode, bool notify_rpm)
+int set_l3_mode(struct low_power_ops *ops, int mode,
+				struct lpm_cluster_level *level)
 {
+	bool notify_rpm = level->notify_rpm;
 	struct low_power_ops *cpu_ops = per_cpu(cpu_cluster,
 			smp_processor_id())->lpm_dev;
 
@@ -418,8 +425,10 @@ int set_l3_mode(struct low_power_ops *ops, int mode, bool notify_rpm)
 }
 
 
-int set_system_mode(struct low_power_ops *ops, int mode, bool notify_rpm)
+int set_system_mode(struct low_power_ops *ops, int mode,
+				struct lpm_cluster_level *level)
 {
+	bool notify_rpm = level->notify_rpm;
 	return msm_spm_config_low_power_mode(ops->spm, mode, notify_rpm);
 }
 
@@ -434,7 +443,7 @@ static int set_device_mode(struct lpm_cluster *cluster, int ndevice,
 	ops = &cluster->lpm_dev[ndevice];
 	if (ops && ops->set_mode)
 		return ops->set_mode(ops, level->mode[ndevice],
-				level->notify_rpm);
+				level);
 	else
 		return -EINVAL;
 }
@@ -806,6 +815,9 @@ static void cluster_unprepare(struct lpm_cluster *cluster,
 
 		if (cluster->no_saw_devices && !use_psci)
 			msm_spm_set_rpm_hs(false);
+
+		if (!from_idle)
+			suspend_wake_time = 0;
 	}
 
 	update_debug_pc_event(CLUSTER_EXIT, cluster->last_level,
@@ -922,6 +934,68 @@ unlock_and_return:
 	return state_id;
 }
 
+//CORE-PK-RPMStatsLog-00+[
+#ifdef CONFIG_FIH_FEATURE_RPM_STATS_LOG
+#include "../soc/qcom/rpm_stats.h"
+
+extern void msm_rpmstats_get_stats_v2(struct msm_rpmstats_mode_data *rpm_stats);
+extern struct msm_rpmstats_mode_data rpmstats_enter;
+extern struct msm_rpmstats_mode_data rpmstats_exit;
+extern struct msm_rpmstats_mode_data rpmstats_suspend;
+
+#ifdef CONFIG_FIH_FEATURE_RPM_MASTER_STATS_LOG
+extern void msm_show_rpm_master_stats(void);
+extern void get_apss_power_collapse_time(unsigned long *apps_pc_time);
+#endif
+
+static void msm_show_rpmstats(void)
+{
+	unsigned long xosd_msec_rem;
+	unsigned long vmin_msec_rem;
+
+	#ifdef CONFIG_FIH_FEATURE_RPM_MASTER_STATS_LOG
+	unsigned long apss_pc_time;
+	unsigned long apss_pc_time_rem;
+	unsigned long apss_left_time;
+	#endif
+
+	rpmstats_suspend.xosd_count = rpmstats_exit.xosd_count - rpmstats_enter.xosd_count;
+	rpmstats_suspend.xosd_time_since_last_mode = rpmstats_exit.xosd_time_since_last_mode;
+	rpmstats_suspend.xosd_actual_last_sleep = rpmstats_exit.xosd_actual_last_sleep - rpmstats_enter.xosd_actual_last_sleep;
+	rpmstats_suspend.vmin_count = rpmstats_exit.vmin_count - rpmstats_enter.vmin_count;
+	rpmstats_suspend.vmin_time_since_last_mode = rpmstats_exit.vmin_time_since_last_mode;
+	rpmstats_suspend.vmin_actual_last_sleep = rpmstats_exit.vmin_actual_last_sleep - rpmstats_enter.vmin_actual_last_sleep;
+
+	#ifdef CONFIG_FIH_FEATURE_RPM_MASTER_STATS_LOG
+	get_apss_power_collapse_time(&apss_pc_time);
+
+	if (apss_pc_time < rpmstats_suspend.vmin_actual_last_sleep)
+		apss_left_time = 0;
+	else
+		apss_left_time = (apss_pc_time - rpmstats_suspend.vmin_actual_last_sleep);
+
+	apss_pc_time_rem = do_div(apss_pc_time, 1000);
+
+	pr_info("[PM] APSS PC:%4lu.%-3lu (VMIN:%7lld; Left:%7ld)\n",
+		apss_pc_time, apss_pc_time_rem,
+		rpmstats_suspend.vmin_actual_last_sleep, apss_left_time );
+	#endif /* CONFIG_FIH_FEATURE_RPM_STATS_LOG */
+
+	xosd_msec_rem = do_div(rpmstats_suspend.xosd_actual_last_sleep, 1000);
+	vmin_msec_rem = do_div(rpmstats_suspend.vmin_actual_last_sleep, 1000);
+
+	pr_info("[PM] XOSD(cnt:%2u time:%3llu.%lu elapse:%5llu) VMIN(cnt:%4u time:%4llu.%-3lu elapse:%5llu)\n",
+		rpmstats_suspend.xosd_count, rpmstats_suspend.xosd_actual_last_sleep, xosd_msec_rem, rpmstats_suspend.xosd_time_since_last_mode,
+		rpmstats_suspend.vmin_count, rpmstats_suspend.vmin_actual_last_sleep, vmin_msec_rem, rpmstats_suspend.vmin_time_since_last_mode);
+
+	#ifdef CONFIG_FIH_FEATURE_RPM_MASTER_STATS_LOG
+	if (rpmstats_suspend.vmin_time_since_last_mode >= 30)
+		msm_show_rpm_master_stats();
+	#endif
+}
+#endif /* CONFIG_FIH_FEATURE_RPM_STATS_LOG */
+//CORE-PK-RPMStatsLog-00+]
+
 #if !defined(CONFIG_CPU_V7)
 asmlinkage int __invoke_psci_fn_smc(u64, u64, u64, u64);
 bool psci_enter_sleep(struct lpm_cluster *cluster, int idx, bool from_idle)
@@ -952,6 +1026,13 @@ bool psci_enter_sleep(struct lpm_cluster *cluster, int idx, bool from_idle)
 		state_id |= (power_state | affinity_level
 			| cluster->cpu->levels[idx].psci_id);
 
+		//CORE-PK-SuspendLog-00+[
+		#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+		if (!from_idle)
+			msm_rpmstats_get_stats_v2(&rpmstats_enter);
+		#endif
+		//CORE-PK-SuspendLog-00+]
+
 		update_debug_pc_event(CPU_ENTER, state_id,
 						0xdeaffeed, 0xdeaffeed, true);
 		stop_critical_timings();
@@ -959,6 +1040,17 @@ bool psci_enter_sleep(struct lpm_cluster *cluster, int idx, bool from_idle)
 		start_critical_timings();
 		update_debug_pc_event(CPU_EXIT, state_id,
 						success, 0xdeaffeed, true);
+
+		//CORE-PK-SuspendLog-00+[
+		#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+		if (!from_idle) {
+			msm_rpmstats_get_stats_v2(&rpmstats_exit);
+			//pr_info("CPU%u:\n", cpu);
+			msm_show_rpmstats();
+		}
+		#endif
+		//CORE-PK-SuspendLog-00+
+
 		return success;
 	}
 }
@@ -1157,7 +1249,7 @@ static int cluster_cpuidle_register(struct lpm_cluster *cl)
 		struct cpuidle_state *st = &cl->drv->states[i];
 		struct lpm_cpu_level *cpu_level = &cl->cpu->levels[i];
 		snprintf(st->name, CPUIDLE_NAME_LEN, "C%u\n", i);
-		snprintf(st->desc, CPUIDLE_DESC_LEN, cpu_level->name);
+		snprintf(st->desc, CPUIDLE_DESC_LEN, "%s", cpu_level->name);
 		st->flags = 0;
 		st->exit_latency = cpu_level->pwr.latency_us;
 		st->power_usage = cpu_level->pwr.ss_power;
@@ -1306,7 +1398,7 @@ static int lpm_suspend_enter(suspend_state_t state)
 	if (!use_psci)
 		msm_cpu_pm_enter_sleep(cluster->cpu->levels[idx].mode, false);
 	else
-		psci_enter_sleep(cluster, idx, true);
+		psci_enter_sleep(cluster, idx, false);
 
 	if (idx > 0)
 		update_debug_pc_event(CPU_EXIT, idx, true, 0xdeaffeed,

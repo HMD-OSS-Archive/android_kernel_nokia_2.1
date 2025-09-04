@@ -84,6 +84,7 @@ static unsigned char rx_buff[MAX_RX_BUFF_SIZE];
 #define RX_WAIT_TIMEOUT (HZ/5)
 
 static struct shirda_ldisc_admin_t ldisc_admin;
+static int fih_ftm_flag = FALSE;
 
 const irda_qos_info default_qos = {
 	.baud_rate		= IRDA_BAUD_9600,
@@ -1072,6 +1073,7 @@ static ssize_t shirda_ldisc_read_READY(struct tty_struct *tty,
 	int event;
 	int exit_flag = FALSE;
 	struct shirda_ldisc_admin_t *admin = SHIRDA_ADMIN(tty);
+	long remained = RX_WAIT_TIMEOUT * 20;
 
 	down(&admin->sem);
 	admin->state = SHIRDA_STATE_RECEIVE;
@@ -1079,14 +1081,18 @@ static ssize_t shirda_ldisc_read_READY(struct tty_struct *tty,
 
 	IRDALOG_INFO("start waiting event\n");
 	while (exit_flag == FALSE) {
-		iret = shirda_ldisc_wait_event(&admin->wakeup_queue);
-
+	if(fih_ftm_flag == TRUE) {
+	   remained = shirda_ldisc_wait_event_timeout(&admin->wakeup_queue,remained);
+	   fih_ftm_flag = FALSE;
+	}
+	else{
+	   iret = shirda_ldisc_wait_event(&admin->wakeup_queue);
 		if (iret < 0) {
 			IRDALOG_ERROR(" wait_event iret=%d\n",iret);
 			ret = iret;
 			break;
 		}
-
+    }
 		down(&admin->sem);
 			event = shirda_ldisc_wakeup_event_dequeue(
 				&admin->wakeup_queue
@@ -2077,6 +2083,9 @@ static int shirda_ldisc_ioctl(struct tty_struct *tty, struct file * file,
 		break;
 	case IRDA_DRV_IOCTL_CLR_MEDIABUSY:
 		ret = shirda_ldisc_clr_mediabusy(tty);
+		break;
+	case IRDA_DRV_IOCTL_FTM_RECEIVER:
+		fih_ftm_flag = TRUE;
 		break;
 	default:
 		ret = -EINVAL;

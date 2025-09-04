@@ -33,65 +33,59 @@
 /**************************************************/
 /****** G: A, I: B, S: C, U: D  ******************/
 /****** chip type defines, do not modify *********/
-#define _FT8716             0x87160805
-#define _FT8736             0x87360806
-#define _FT8006M            0x80060807
-#define _FT8201             0x82010807
-#define _FT7250             0x72500807
-#define _FT8606             0x86060808
-#define _FT8607             0x86070809
-#define _FTE716             0xE716080A
-#define _FT8006U            0x8006D80B
-#define _FT8613             0x8613080C
+#define _FT8716     0x87160805
+#define _FT8736     0x87360806
+#define _FT8006     0x80060807
+#define _FT8606     0x86060808
+#define _FT8607     0x86070809
+#define _FTE716     0xE716080a
 
-#define _FT5416             0x54160402
-#define _FT5426             0x54260402
-#define _FT5435             0x54350402
-#define _FT5436             0x54360402
-#define _FT5526             0x55260402
-#define _FT5526I            0x5526B402
-#define _FT5446             0x54460402
-#define _FT5346             0x53460402
-#define _FT5446I            0x5446B402
-#define _FT5346I            0x5346B402
-#define _FT7661             0x76610402
-#define _FT7511             0x75110402
-#define _FT7421             0x74210402
-#define _FT7681             0x76810402
-#define _FT3C47U            0x3C47D402
-#define _FT3417             0x34170402
-#define _FT3517             0x35170402
-#define _FT3327             0x33270402
-#define _FT3427             0x34270402
-#define _FT7311             0x73110402
+#define _FT5416     0x54160002
+#define _FT5426     0x54260002
+#define _FT5435     0x54350002
+#define _FT5436     0x54360002
+#define _FT5526     0x55260002
+#define _FT5526I    0x5526B002
+#define _FT5446     0x54460002
+#define _FT5346     0x53460002
+#define _FT5446I    0x5446B002
+#define _FT5346I    0x5346B002
+#define _FT7661     0x76610002
+#define _FT7511     0x75110002
+#define _FT7421     0x74210002
+#define _FT7681     0x76810002
+#define _FT3C47U    0x3C47D002
+#define _FT3417     0x34170002
+#define _FT3517     0x35170002
+#define _FT3327     0x33270002
+#define _FT3427     0x34270002
 
-#define _FT5626             0x56260401
-#define _FT5726             0x57260401
-#define _FT5826B            0x5826B401
-#define _FT5826S            0x5826C401
-#define _FT7811             0x78110401
-#define _FT3D47             0x3D470401
-#define _FT3617             0x36170401
-#define _FT3717             0x37170401
-#define _FT3817B            0x3817B401
-#define _FT3517U            0x3517D401
+#define _FT5626     0x56260001
+#define _FT5726     0x57260001
+#define _FT5826B    0x5826B001
+#define _FT5826S    0x5826C001
+#define _FT7811     0x78110001
+#define _FT3D47     0x3D470001
+#define _FT3617     0x36170001
+#define _FT3717     0x37170001
+#define _FT3817B    0x3817B001
 
-#define _FT6236U            0x6236D003
-#define _FT6336G            0x6336A003
-#define _FT6336U            0x6336D003
-#define _FT6436U            0x6436D003
+#define _FT6236U    0x6236D003
+#define _FT6336G    0x6336A003
+#define _FT6336U    0x6336D003
+#define _FT6436U    0x6436D003
 
-#define _FT3267             0x32670004
-#define _FT3367             0x33670004
-#define _FT5422U            0x5422D482
-#define _FT3327DQQ_001      0x3327D482
+#define _FT3267     0x32670004
+#define _FT3367     0x33670004
+
+
 
 /*************************************************/
 
 /*
  * choose your ic chip type of focaltech
  */
-#define FTS_CHIP_TYPE   _FT3327
+#define FTS_CHIP_TYPE   _FT3267
 
 /******************* Enables *********************/
 /*********** 1 to enable, 0 to disable ***********/
@@ -108,6 +102,7 @@
  */
 #define FTS_MT_PROTOCOL_B_EN                    1
 
+
 /*
  * Report Pressure in multitouch
  * 1:enable(default),0:disable
@@ -115,22 +110,30 @@
 #define FTS_REPORT_PRESSURE_EN                  1
 
 /*
+ * Force touch support
+ * different pressure for multitouch
+ * 1: true pressure for force touch
+ * 0: constant pressure(default)
+ */
+#define FTS_FORCE_TOUCH_EN                      0
+
+/*
  * Gesture function enable
  * default: disable
  */
-#define FTS_GESTURE_EN                          0
+#define FTS_GESTURE_EN                          1
 
 /*
  * ESD check & protection
  * default: disable
  */
-#define FTS_ESDCHECK_EN                         1
+#define FTS_ESDCHECK_EN                         0
 
 /*
  * Production test enable
  * 1: enable, 0:disable(default)
  */
-#define FTS_TEST_EN                             1
+#define FTS_TEST_EN                             0
 
 /*
  * Glove mode enable
@@ -149,16 +152,16 @@
 #define FTS_CHARGER_EN                          0
 
 /*
+ * Proximity sensor
+ * default: disable
+ */
+#define FTS_PSENSOR_EN                          0
+
+/*
  * Nodes for tools, please keep enable
  */
 #define FTS_SYSFS_NODE_EN                       1
 #define FTS_APK_NODE_EN                         1
-
-/*
- * Pinctrl enable
- * default: disable
- */
-#define FTS_PINCTRL_EN                          1
 
 /*
  * Customer power enable
@@ -177,47 +180,68 @@
 
 /*
  * auto upgrade for lcd cfg
+ * default: 0
  */
-#define FTS_AUTO_LIC_UPGRADE_EN                 0
+#define FTS_AUTO_UPGRADE_FOR_LCD_CFG_EN         0
+
+/* auto cb check
+ * default: disable
+ */
+#define FTS_AUTO_CLB_EN                         0
 
 /*
  * Check vendor_id number
  * 0:No check vendor_id (default)
  * 1/2/3: Check vendor_id for vendor compatibility
  */
-#define FTS_GET_VENDOR_ID_NUM                   2
+#define FTS_GET_VENDOR_ID_NUM                   0
 
 /*
  * vendor_id(s) for vendor(s) to be compatible with.
  * a confirmation of vendor_id(s) is recommended.
- * FTS_VENDOR_ID = PANEL_ID << 8 + VENDOR_ID
- * FTS_GET_VENDOR_ID_NUM == 0/1, no check vendor id, you may ignore them
- * FTS_GET_VENDOR_ID_NUM > 1, compatible with FTS_VENDOR_ID
- * FTS_GET_VENDOR_ID_NUM >= 2, compatible with FTS_VENDOR_ID2
- * FTS_GET_VENDOR_ID_NUM >= 3, compatible with FTS_VENDOR_ID3
+ * FTS_GET_VENDOR_ID_NUM == 0, no check vendor id, you may ignore them
+ * FTS_GET_VENDOR_ID_NUM >= 1, compatible with FTS_VENDOR_1_ID
+ * FTS_GET_VENDOR_ID_NUM >= 2, compatible with FTS_VENDOR_2_ID
+ * FTS_GET_VENDOR_ID_NUM == 3, compatible with FTS_VENDOR_3_ID
  */
-#define FTS_VENDOR_ID                          0x0082 //HLT
-#define FTS_VENDOR_ID2                         0x00F0 //TXD
-#define FTS_VENDOR_ID3                         0x0000
+#define FTS_VENDOR_1_ID                         0x00
+#define FTS_VENDOR_2_ID                         0x00
+#define FTS_VENDOR_3_ID                         0x00
 
 /*
- * FW.i file for auto upgrade, you must replace it with your own
- * define your own fw_file, the sample one to be replaced is invalid
- * NOTE: if FTS_GET_VENDOR_ID_NUM > 1, it's the fw corresponding with FTS_VENDOR_ID
+ * FW_APP.i file for auto upgrade, you must replace it with your own
+ * define your own fw_app, the sample one to be replaced is invalid
+ * NOTE: if FTS_GET_VENDOR_ID_NUM >= 1,
+ *       it's the fw corresponding with FTS_VENDOR_1_ID
  */
-#define FTS_UPGRADE_FW_FILE                      "include/firmware/FT5x46i_FT34x7_Va_D02_20180613_app.i"
+#define FTS_UPGRADE_FW_APP		"include/firmware/FT8716_app_sample.i"
 
 /*
- * if FTS_GET_VENDOR_ID_NUM >= 2, fw corrsponding with FTS_VENDOR_ID2
- * define your own fw_file, the sample one is invalid
+ * if FTS_GET_VENDOR_ID_NUM >= 2, fw corrsponding with FTS_VENDOR_2_ID
+ * define your own fw_app, the sample one is invalid
  */
-#define FTS_UPGRADE_FW2_FILE                     "include/firmware/FT5x46i_FT34x7_V07_D02_20180705_app.i"
+#define FTS_UPGRADE_FW2_APP		"include/firmware/FT8716_app_sample.i"
 
 /*
- * if FTS_GET_VENDOR_ID_NUM >= 3, fw corrsponding with FTS_VENDOR_ID3
- * define your own fw_file, the sample one is invalid
+ * if FTS_GET_VENDOR_ID_NUM == 3, fw corrsponding with FTS_VENDOR_3_ID
+ * define your own fw_app, the sample one is invalid
  */
-#define FTS_UPGRADE_FW3_FILE                     "include/firmware/TP2040A_FT3327_V05_D02_20180109_app.i"
+#define FTS_UPGRADE_FW3_APP		"include/firmware/FT8716_app_sample.i"
+
+/*
+ * lcd_cfg.i file for lcd cfg upgrade
+ * define your own lcd_cfg.i, the sample one is invalid
+ */
+#define FTS_UPGRADE_LCD_CFG		"include/firmware/lcd_cfg.i"
+
+/*
+ * upgrade stress test for debug
+ * enable it for upgrade debug if needed
+ * default: disable
+ */
+#define FTS_UPGRADE_STRESS_TEST                 0
+/* stress test times, default: 1000 */
+#define FTS_UPGRADE_TEST_NUMBER                 1000
 
 /*********************************************************/
 

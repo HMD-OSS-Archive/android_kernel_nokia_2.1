@@ -175,29 +175,16 @@
 			#size-cells = <1>;
 
 			qcom,iterm-ma = <100>;
-			// MOD start full_charging_voltage hangxing.jiang 2018.01.16
-			qcom,float-voltage-mv = <4350>;
-			// MOD end full_charging_voltage hangxing.jiang 2018.01.16
-			/* MOD start full_charging_voltage hangxing.jiang 2018.05.02 */
-			qcom,float-voltage-comp = <14>;
-			/* MOD end full_charging_voltage hangxing.jiang 2018.05.02 */
+			qcom,float-voltage-mv = <4200>;
 			qcom,resume-delta-mv = <200>;
 			qcom,chg-inhibit-fg;
 			qcom,rparasitic-uohm = <100000>;
 			qcom,bms-psy-name = "bms";
-			qcom,thermal-mitigation = <1900 1000 600 0>;
+			qcom,thermal-mitigation = <1500 700 600 0>;
 			qcom,pmic-revid = <&pmi8940_revid>;
 			qcom,force-aicl-rerun;
 			qcom,aicl-rerun-period-s = <180>;
 			qcom,autoadjust-vfloat;
-			// ADD start timeout-mins hangxing.jiang 2018.01.15
-			qcom,charging-timeout-mins = <1536>;
-			qcom,precharging-timeout-mins = <192>;
-			// ADD end timeout-mins hangxing.jiang 2018.01.15
-			// Add begin by ext-hangxing.jiang for: fast charger current
-			qcom,fastchg-current-ma = <1900>;
-			qcom,fastchg-current-comp = <900>;
-			// Add end
 
 			qcom,chgr@1000 {
 				reg = <0x1000 0x100>;
@@ -300,29 +287,15 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			qcom,resume-soc = <95>;
-			// ADD start re-charge hangxing.jiang 2018.01.08
-			qcom,hold-soc-while-full;
-			// ADD end re-charge hangxing.jiang 2018.01.08
 			status = "okay";
 			qcom,bcl-lm-threshold-ma = <127>;
 			qcom,bcl-mh-threshold-ma = <405>;
-			// MOD start Stop_charging_current hangxing.jiang 2018.01.13
-			qcom,fg-iterm-ma = <250>;
-			qcom,fg-chg-iterm-ma = <200>;
-			// MOD end Stop_charging_current hangxing.jiang 2018.01.13
+			qcom,fg-iterm-ma = <150>;
+			qcom,fg-chg-iterm-ma = <100>;
 			qcom,pmic-revid = <&pmi8940_revid>;
-			// MOD start FG-cutoff-voltage hangxingjiang 2018.01.05
-			qcom,fg-cutoff-voltage-mv = <3300>;
-			// MOD end FG-cutoff-voltage hangxingjiang 2018.01.05
+			qcom,fg-cutoff-voltage-mv = <3500>;
 			qcom,cycle-counter-en;
 			qcom,capacity-learning-on;
-			// ADD start Battery temp protection hangxing.jiang 2018.01.05
-			qcom,cold-bat-decidegc = <20>;
-			qcom,hot-bat-decidegc = <550>;
-			qcom,cool-bat-decidegc = <100>;
-			//qcom,warm-bat-decidegc = <450>;
-			// ADD end Battery temp protection hangxing.jiang 2018.01.05
-
 
 			qcom,fg-soc@4000 {
 			status = "okay";
@@ -524,7 +497,7 @@
 			qcom,en-ext-pfet-sc-pro;
 			qcom,cons-sync-write-delay-us = <1000>;
 		};
-
+//misty E2MP camera porting++
 		flash_led: qcom,leds@d300 {
 			compatible = "qcom,qpnp-flash-led";
 			status = "okay";
@@ -604,7 +577,7 @@
 				};
 			};
 		};
-
+//misty E2MP camera porting--
 		pmi_haptic: qcom,haptic@c000 {
 			compatible = "qcom,qpnp-haptic";
 			reg = <0xc000 0x100>;
