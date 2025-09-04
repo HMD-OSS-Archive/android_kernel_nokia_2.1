@@ -368,6 +368,8 @@ enum wake_reason {
 	PM_DETECT_HVDCP = BIT(4),
 };
 
+static char buildvariant[20];
+
 /* fcc_voters */
 #define ESR_PULSE_FCC_VOTER	"ESR_PULSE_FCC_VOTER"
 #define BATT_TYPE_FCC_VOTER	"BATT_TYPE_FCC_VOTER"
@@ -9112,6 +9114,29 @@ static void rerun_hvdcp_det_if_necessary(struct smbchg_chip *chip)
 	}
 }
 
+static int __init verity_buildvariant(char *line)
+{
+        strlcpy(buildvariant, line, sizeof(buildvariant));
+        return 1;
+}
+
+__setup("buildvariant=", verity_buildvariant);
+
+static inline bool is_eng(void)
+{
+        static const char typeeng[]  = "eng";
+
+        return !strncmp(buildvariant, typeeng, sizeof(typeeng));
+}
+
+static inline bool is_userdebug(void)
+{
+        static const char typeuserdebug[]  = "userdebug";
+
+        return !strncmp(buildvariant, typeuserdebug, sizeof(typeuserdebug));
+}
+
+
 static int smbchg_probe(struct spmi_device *spmi)
 {
 	int rc;
@@ -9345,6 +9370,12 @@ static int smbchg_probe(struct spmi_device *spmi)
 		dev_err(&spmi->dev,
 			"Unable to intialize hardware rc = %d\n", rc);
 		goto out;
+	}
+
+	if(is_eng()||is_userdebug())
+	{
+		smbchg_safety_timer_enable(chip,false);
+		printk("disable safety_timer\n");
 	}
 
 	rc = determine_initial_status(chip);

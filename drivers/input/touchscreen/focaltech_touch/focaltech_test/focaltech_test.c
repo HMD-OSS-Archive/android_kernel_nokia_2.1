@@ -770,6 +770,11 @@ void fts_touch_selftest(void)
     struct input_dev *input_dev;
     int ret = 0;
     u8 vendor_id;
+    u8 mode;
+    u8 irq_value;
+    u8 reg_value;
+    u8 org_value;
+    int i = 0;
 
     FTS_TEST_FUNC_ENTER();
 
@@ -805,6 +810,65 @@ void fts_touch_selftest(void)
 #if defined(FTS_ESDCHECK_EN) && (FTS_ESDCHECK_EN)
     fts_esdcheck_switch(ENABLE);
 #endif
+
+    if (selftest_result != 0)
+        goto self_test_fail;
+
+    fts_i2c_write_reg(client, FTS_REG_WORKMODE, FTS_REG_WORKMODE_FACTORY_VALUE);
+    if (fts_i2c_read_reg(client, FTS_REG_WORKMODE, &mode) < 0) {
+        FTS_ERROR("read work mode fail");
+        selftest_result = -1;
+    } else {
+        if((mode & 0x70) != FTS_REG_WORKMODE_FACTORY_VALUE) {
+            FTS_ERROR("work mode 0x%x, set facotry mode fail", mode);
+            selftest_result = -1;
+        } else {
+            irq_value = gpio_get_value(ts_data->pdata->irq_gpio);
+            if (1 != irq_value) {
+                FTS_ERROR("irq value before test = %d, it should be 1", irq_value);
+                selftest_result = -1;
+            } else {
+                selftest_result = -1;
+                fts_i2c_write_reg(client, 0x08, 0x01);
+                for (i = 0; i < 10; i++) {
+                    irq_value = gpio_get_value(ts_data->pdata->irq_gpio);
+                    FTS_INFO("get irq gpio value  = %d", irq_value);
+                    if (irq_value == 0) {
+                        FTS_INFO("irq gpio test ok\n");
+                        selftest_result = 0;
+                        break;
+                    }
+                    msleep(10);
+                }
+            }
+            fts_i2c_write_reg(client, 0x08, 0x00);
+        }
+    }
+    fts_i2c_write_reg(client, FTS_REG_WORKMODE, FTS_REG_WORKMODE_WORK_VALUE);
+
+    if (selftest_result != 0)
+        goto self_test_fail;
+
+    fts_i2c_read_reg(client, 0x88, &org_value);
+    FTS_INFO("reg 0x88 org value = 0x%x", org_value);
+
+    fts_i2c_write_reg(client, 0x88, 0xEE);
+    fts_i2c_read_reg(client, 0x88, &reg_value);
+    FTS_INFO("reg 0x88 mod value = 0x%x", reg_value);
+
+    fts_reset_proc(200);
+    fts_i2c_read_reg(client, 0x88, &reg_value);
+    FTS_INFO("reg 0x88 value after reset = 0x%x", reg_value);
+
+    if (reg_value != org_value) {
+        FTS_ERROR("reset test failed");
+        selftest_result = -1;
+    } else {
+        FTS_INFO("rest gpio test ok\n");
+        selftest_result = 0;
+    }
+
+self_test_fail:
 
     enable_irq(client->irq);
     mutex_unlock(&input_dev->mutex);
