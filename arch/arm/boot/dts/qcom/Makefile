@@ -188,6 +188,7 @@ dtb-$(CONFIG_ARCH_MSM8937) += \
 dtb-$(CONFIG_ARCH_MSM8917) += \
 	msm8917-pmi8937-mtp.dtb \
 	msm8917-pmi8940-mtp.dtb \
+	msm8917-pmi8940-mtp-costdown.dtb \
 	msm8917-pmi8950-mtp.dtb \
 
 #dtb-$(CONFIG_ARCH_MSM8920) += msm8920-pmi8937-cdp.dtb \

@@ -8,6 +8,7 @@
 #include "fih_ramtable.h"
 #include "fih_hwcfg.h"
 #include "fih_auth_key.h"
+#include <linux/of.h>
 
 static unsigned int my_proc_addr = FIH_HWCFG_MEM_ADDR;
 static unsigned int my_proc_size = FIH_HWCFG_MEM_SIZE;
@@ -97,6 +98,38 @@ static int bandinfo_proc_open(struct inode *inode, struct file *file)
 static struct file_operations bandinfo_file_ops = {
 	.owner   = THIS_MODULE,
 	.open    = bandinfo_proc_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = single_release
+};
+
+static int fih_info_proc_read_rf_board_show(struct seq_file *m, void *v)
+{
+	struct device_node *root_node = NULL;
+	int ret = 0;
+	int board_id[2] = {0};
+	root_node = of_find_compatible_node(NULL, NULL, "qcom,msm8917");
+	if (!root_node) {
+		printk("Cannot find root node from dts\n");
+		seq_printf(m, "0x%X\n", board_id[0]);
+	}
+	else
+	{
+		ret = of_property_read_u32_array(root_node, "qcom,board-id", board_id,ARRAY_SIZE(board_id));
+		if(!ret)
+			seq_printf(m, "0x%X\n", board_id[0]);
+	}
+
+	return 0;
+}
+static int boardinfo_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, fih_info_proc_read_rf_board_show, NULL);
+};
+
+static struct file_operations boardinfo_file_ops = {
+	.owner   = THIS_MODULE,
+	.open    = boardinfo_proc_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = single_release
@@ -285,6 +318,7 @@ static struct {
 	{"fqc_xml", &fqc_xml_file_ops},
 	{"SIMSlot", &simslot_file_ops},
 	{"iqiyi_auth_key", &iqiyi_file_ops},
+	{"boardinfo", &boardinfo_file_ops},
 	{NULL}, };
 
 static int __init fih_info_init(void)

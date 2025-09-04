@@ -160,6 +160,49 @@
 			};
 		};
 
+		pmx_bqchg:pmx_bqchg{
+			smb_int_default:smb_int_default{
+				mux {
+					pins = "gpio61";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio61";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			bq_int_default:bq_int_default{
+				mux {
+					pins = "gpio25";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio25";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+		};
+// D2 bat_id is in PM8937 MPP_02
+		bat_id_default: bat_id_default{
+			mux {
+				pins = "gpio50";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio50";
+				drive-strength = <2>;
+				bias-disable;
+				input-enable;
+			};
+		};
+
 		wcnss_pmux_5wire {
 			/* Active configuration of bus pins */
 			wcnss_default: wcnss_default {
@@ -1086,12 +1129,12 @@
 				/* active state */
 				mux {
 					/* MOSI, MISO, CLK */
-					pins = "gpio20", "gpio21", "gpio23";
+					pins = "gpio20", "gpio21";
 					function = "blsp_spi6";
 				};
 
 				config {
-					pins = "gpio20", "gpio21", "gpio23";
+					pins = "gpio20", "gpio21";
 					drive-strength = <16>; /* 16 MA */
 					bias-disable = <0>; /* No PULL */
 				};
@@ -1101,12 +1144,12 @@
 				/* suspended state */
 				mux {
 					/* MOSI, MISO, CLK */
-					pins = "gpio20", "gpio21", "gpio23";
+					pins = "gpio20", "gpio21";
 					function = "gpio";
 				};
 
 				config {
-					pins = "gpio20", "gpio21", "gpio23";
+					pins = "gpio20", "gpio21";
 					drive-strength = <2>; /* 2 MA */
 					bias-pull-down; /* PULL Down */
 				};
@@ -1194,7 +1237,7 @@
 				config {
 					pins = "gpio6", "gpio7";
 					drive-strength = <2>;
-					bias-disable;
+					input-enable;
 				};
 			};
 		};
@@ -1294,12 +1337,12 @@
 			i2c_6_active: i2c_6_active {
 				/* active state */
 				mux {
-					pins = "gpio22", "gpio23";
+					pins = "gpio22";
 					function = "blsp_i2c6";
 				};
 
 				config {
-					pins = "gpio22", "gpio23";
+					pins = "gpio22";
 					drive-strength = <2>;
 					bias-disable;
 				};
@@ -1308,12 +1351,12 @@
 			i2c_6_sleep: i2c_6_sleep {
 				/* suspended state */
 				mux {
-					pins = "gpio22", "gpio23";
+					pins = "gpio22";
 					function = "gpio";
 				};
 
 				config {
-					pins = "gpio22", "gpio23";
+					pins = "gpio22";
 					drive-strength = <2>;
 					bias-disable;
 				};

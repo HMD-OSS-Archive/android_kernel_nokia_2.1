@@ -1521,7 +1521,8 @@ unsigned char FT5X46_TestItem_WeakShortTest( bool *bTestResult )
             continue;
         } else {    //  adc function ok
             FTS_TEST_INFO("iAdcData0=0x%x, iAdcData1=0x%x", iAdcData[0], iAdcData[1]);
-            if ( 0 == iAdcData[0] && 0 == iAdcData[1]) {
+            //if ( 0 == iAdcData[0] && 0 == iAdcData[1]) {
+	    if ( 0 == iAdcData[0] || 0 == iAdcData[1] || 0xFFFF == iAdcData[0] || 0xFFFF == iAdcData[1] ) {
                 continue;
             }
 

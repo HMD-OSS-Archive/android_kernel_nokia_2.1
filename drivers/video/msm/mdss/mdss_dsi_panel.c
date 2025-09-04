@@ -219,9 +219,9 @@ static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 }
 
-static char led_pwm1[2] = {0x51, 0x0};	/* DTYPE_DCS_WRITE1 */
+static char led_pwm1[3] = {0x51, 0x0, 0x0};	/* DTYPE_DCS_WRITE1 */
 static struct dsi_cmd_desc backlight_cmd = {
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 1, sizeof(led_pwm1)},
+	{DTYPE_DCS_LWRITE, 1, 0, 0, 1, sizeof(led_pwm1)},
 	led_pwm1
 };
 
@@ -238,7 +238,21 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 
 	pr_debug("%s: level=%d\n", __func__, level);
 
-	led_pwm1[1] = (unsigned char)level;
+	pr_debug("%s: panel_name=%s\n", __func__, pinfo->panel_name);
+	if(strstr(pinfo->panel_name, "otm1290a"))
+	{
+		pr_debug("%s: otma\n", __func__);
+		led_pwm1[1] = (unsigned char)level;
+		led_pwm1[2] = 0;
+	}
+	else
+	{
+		pr_debug("%s: ilitek\n", __func__);
+		led_pwm1[1] = (unsigned char)(level&0xF0)>>4;
+		led_pwm1[2] = (unsigned char)(level&0x0F)<<4;
+	}
+	pr_debug("%s: level1=%d\n", __func__, led_pwm1[1]);
+	pr_debug("%s: level2=%d\n", __func__, led_pwm1[2]);
 
 	memset(&cmdreq, 0, sizeof(cmdreq));
 	cmdreq.cmds = &backlight_cmd;

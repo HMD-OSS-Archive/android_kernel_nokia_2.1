@@ -304,6 +304,16 @@ static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 		pr_err("%s: failed to disable vregs for %s\n",
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
 
+				//Pull LOW LCM ENN Pin
+				pr_err("\n\n********************%s,lcm_enn_gpio = %d ,PULL LOW**********************\n\n", __func__, ctrl_pdata->lcm_enn_gpio);
+				gpio_set_value(ctrl_pdata->lcm_enn_gpio, 0);
+				gpio_free(ctrl_pdata->lcm_enn_gpio);
+
+				mdelay(1);
+				//Pull LOW LCM ENP Pin
+				pr_err("\n\n********************%s,lcm_enp_gpio = %d ,PULL LOW**********************\n\n", __func__, ctrl_pdata->lcm_enp_gpio);
+				gpio_set_value(ctrl_pdata->lcm_enp_gpio, 0);
+				gpio_free(ctrl_pdata->lcm_enp_gpio);
 end:
 	return ret;
 }
@@ -330,6 +340,24 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 		return ret;
 	}
 
+				//Pull HIGH LCM ENP Enable Pin
+				pr_err("\n\n********************%s,lcm_enp_gpio = %d ,PULL HIGH**********************\n\n", __func__, ctrl_pdata->lcm_enp_gpio);
+				if (gpio_request(ctrl_pdata->lcm_enp_gpio, "lcm_enp_en")) {
+					pr_err("%s:request lcm_enp gpio failed\n", __func__);
+					//BBOX_LCM_GPIO_FAIL
+					gpio_free(ctrl_pdata->lcm_enp_gpio);
+				}
+				gpio_set_value(ctrl_pdata->lcm_enp_gpio, 1);
+				mdelay(5);
+
+				//Pull HIGH LCM ENN Enable Pin
+				pr_err("\n\n********************%s,lcm_enn_gpio = %d ,PULL HIGH**********************\n\n", __func__, ctrl_pdata->lcm_enn_gpio);
+				if (gpio_request(ctrl_pdata->lcm_enn_gpio, "lcm_enn_en")) {
+					pr_err("%s:request lcm_enn gpio failed\n", __func__);
+					//BBOX_LCM_GPIO_FAIL
+					gpio_free(ctrl_pdata->lcm_enn_gpio);
+				}
+				gpio_set_value(ctrl_pdata->lcm_enn_gpio, 1);
 	/*
 	 * If continuous splash screen feature is enabled, then we need to
 	 * request all the GPIOs that have already been configured in the
@@ -4103,6 +4131,17 @@ static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 			 "qcom,platform-reset-gpio", 0);
 	if (!gpio_is_valid(ctrl_pdata->rst_gpio))
 		pr_err("%s:%d, reset gpio not specified\n",
+						__func__, __LINE__);
+	ctrl_pdata->lcm_enp_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
+				 "qcom,platform-lcm-enp-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->lcm_enp_gpio))
+			pr_err("%s:%d, lcm enp gpio not specified\n",
+							__func__, __LINE__);
+
+	ctrl_pdata->lcm_enn_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
+			 "qcom,platform-lcm-enn-gpio", 0);
+	if (!gpio_is_valid(ctrl_pdata->lcm_enn_gpio))
+		pr_err("%s:%d, lcm enn gpio not specified\n",
 						__func__, __LINE__);
 
 	if (pinfo->mode_gpio_state != MODE_GPIO_NOT_VALID) {

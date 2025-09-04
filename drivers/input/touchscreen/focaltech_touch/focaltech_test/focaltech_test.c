@@ -629,6 +629,84 @@ bool fts_test_start(void)
     return testresult;
 }
 
+static int fts_pin_test(void)
+{
+    u8 irq_value;
+    u8 reg_value;
+    u8 org_value;
+    u8 mode;
+    int ret = 0;
+    int ret_int = 0;
+    int ret_rst = 0;
+    struct fts_ts_data *ts_data = fts_data;
+    struct i2c_client *client;
+
+    client = ts_data->client;
+
+    fts_i2c_write_reg(client, FTS_REG_WORKMODE, FTS_REG_WORKMODE_FACTORY_VALUE);
+    if (fts_i2c_read_reg(client, FTS_REG_WORKMODE, &mode) < 0) {
+        FTS_ERROR("read work mode fail\n");
+        FTS_TEST_SAVE_INFO("read work mode fail!\n");
+	ret_int = -1;
+    } else {
+        if((mode & 0x70) != FTS_REG_WORKMODE_FACTORY_VALUE) {
+            FTS_ERROR("work mode 0x%x, set facotry mode fail\n", mode);
+            FTS_TEST_SAVE_INFO("work mode 0x%x, set facotry mode fail\n", mode);
+	    ret_int = -1;
+        } else {
+            ret_int = -1;
+            FTS_INFO("irq value before test = %d, it should be 1\n", gpio_get_value(ts_data->pdata->irq_gpio));
+            FTS_TEST_SAVE_INFO("irq value before test = %d, it should be 1\n", gpio_get_value(ts_data->pdata->irq_gpio));
+            irq_value = gpio_get_value(ts_data->pdata->irq_gpio);
+            fts_i2c_write_reg(client, 0x08, 0x01);
+	    msleep(10);
+            FTS_INFO("irq value after test = %d, it should be 0\n", gpio_get_value(ts_data->pdata->irq_gpio));
+            FTS_TEST_SAVE_INFO("irq value after test = %d, it should be 0\n", gpio_get_value(ts_data->pdata->irq_gpio));
+	    if(irq_value != gpio_get_value(ts_data->pdata->irq_gpio))
+	    {
+                FTS_INFO("===irq gpio test ok\n");
+		FTS_TEST_SAVE_INFO("==========irq gpio test ok\n");
+		ret_int = 0;
+	    }
+	    else
+	    {
+                FTS_INFO("===irq gpio test failed\n");
+		FTS_TEST_SAVE_INFO("==========irq gpio test failed!\n");
+		ret_int = -1;
+	    }
+            //fts_i2c_write_reg(client, 0x08, 0x00);
+        }
+    }
+    fts_i2c_write_reg(client, FTS_REG_WORKMODE, FTS_REG_WORKMODE_WORK_VALUE);
+
+    fts_i2c_read_reg(client, 0x88, &org_value);
+    FTS_INFO("reg 0x88 org value = 0x%x\n", org_value);
+    FTS_TEST_SAVE_INFO("reg 0x88 org value = 0x%x\n", org_value);
+
+    fts_i2c_write_reg(client, 0x88, 0xEE);
+    fts_i2c_read_reg(client, 0x88, &reg_value);
+    FTS_INFO("reg 0x88 mod value = 0x%x\n", reg_value);
+    FTS_TEST_SAVE_INFO("reg 0x88 mod value = 0x%x\n", reg_value);
+
+    fts_reset_proc(200);
+    fts_i2c_read_reg(client, 0x88, &reg_value);
+    FTS_INFO("reg 0x88 value after reset = 0x%x\n", reg_value);
+    FTS_TEST_SAVE_INFO("reg 0x88 value after reset = 0x%x\n", reg_value);
+
+    if (reg_value != org_value) {
+        FTS_ERROR("===reset test failed\n");
+        FTS_TEST_SAVE_INFO("==========reset test failed!\n");
+	ret_rst = -1;
+    } else {
+        FTS_INFO("===rest gpio test ok\n");
+        FTS_TEST_SAVE_INFO("==========rest gpio test ok\n");
+        ret_rst = 0;
+    }
+    if(ret_int<0 || ret_rst<0)
+	    ret = -1;
+    return ret;
+}
+
 static int fts_test_entry(char *ini_file_name)
 {
     int ret = 0;
@@ -669,6 +747,19 @@ static int fts_test_entry(char *ini_file_name)
         selftest_result = 0;
     } else {
         FTS_TEST_SAVE_INFO("\n=======Tp test failure. \n\n");
+        selftest_result = -1;
+    }
+
+    if(fts_pin_test() == 0)
+    {
+        FTS_TEST_SAVE_INFO("\n=======Pin test pass. \n\n");
+        FTS_INFO("===Pin test pass.\n");
+        selftest_result = 0;
+    }
+    else
+    {
+        FTS_TEST_SAVE_INFO("\n=======Pin test failure. \n\n");
+        FTS_INFO("===Pin test failure..\n");
         selftest_result = -1;
     }
 
@@ -770,11 +861,6 @@ void fts_touch_selftest(void)
     struct input_dev *input_dev;
     int ret = 0;
     u8 vendor_id;
-    u8 mode;
-    u8 irq_value;
-    u8 reg_value;
-    u8 org_value;
-    int i = 0;
 
     FTS_TEST_FUNC_ENTER();
 
@@ -810,65 +896,6 @@ void fts_touch_selftest(void)
 #if defined(FTS_ESDCHECK_EN) && (FTS_ESDCHECK_EN)
     fts_esdcheck_switch(ENABLE);
 #endif
-
-    if (selftest_result != 0)
-        goto self_test_fail;
-
-    fts_i2c_write_reg(client, FTS_REG_WORKMODE, FTS_REG_WORKMODE_FACTORY_VALUE);
-    if (fts_i2c_read_reg(client, FTS_REG_WORKMODE, &mode) < 0) {
-        FTS_ERROR("read work mode fail");
-        selftest_result = -1;
-    } else {
-        if((mode & 0x70) != FTS_REG_WORKMODE_FACTORY_VALUE) {
-            FTS_ERROR("work mode 0x%x, set facotry mode fail", mode);
-            selftest_result = -1;
-        } else {
-            irq_value = gpio_get_value(ts_data->pdata->irq_gpio);
-            if (1 != irq_value) {
-                FTS_ERROR("irq value before test = %d, it should be 1", irq_value);
-                selftest_result = -1;
-            } else {
-                selftest_result = -1;
-                fts_i2c_write_reg(client, 0x08, 0x01);
-                for (i = 0; i < 10; i++) {
-                    irq_value = gpio_get_value(ts_data->pdata->irq_gpio);
-                    FTS_INFO("get irq gpio value  = %d", irq_value);
-                    if (irq_value == 0) {
-                        FTS_INFO("irq gpio test ok\n");
-                        selftest_result = 0;
-                        break;
-                    }
-                    msleep(10);
-                }
-            }
-            fts_i2c_write_reg(client, 0x08, 0x00);
-        }
-    }
-    fts_i2c_write_reg(client, FTS_REG_WORKMODE, FTS_REG_WORKMODE_WORK_VALUE);
-
-    if (selftest_result != 0)
-        goto self_test_fail;
-
-    fts_i2c_read_reg(client, 0x88, &org_value);
-    FTS_INFO("reg 0x88 org value = 0x%x", org_value);
-
-    fts_i2c_write_reg(client, 0x88, 0xEE);
-    fts_i2c_read_reg(client, 0x88, &reg_value);
-    FTS_INFO("reg 0x88 mod value = 0x%x", reg_value);
-
-    fts_reset_proc(200);
-    fts_i2c_read_reg(client, 0x88, &reg_value);
-    FTS_INFO("reg 0x88 value after reset = 0x%x", reg_value);
-
-    if (reg_value != org_value) {
-        FTS_ERROR("reset test failed");
-        selftest_result = -1;
-    } else {
-        FTS_INFO("rest gpio test ok\n");
-        selftest_result = 0;
-    }
-
-self_test_fail:
 
     enable_irq(client->irq);
     mutex_unlock(&input_dev->mutex);
