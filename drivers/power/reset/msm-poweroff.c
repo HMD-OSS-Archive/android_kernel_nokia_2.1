@@ -410,6 +410,12 @@ static void msm_restart_prepare(const char *cmd)
 			set_dload_mode(download_mode);
 		} else if (strstr(cmd, "skt_restart")) {
 			__raw_writel(FIH_RERE_SKT_RESTART, restart_reason);
+		} else if (!strncmp(cmd, "sura_update_eraseuserdata", 25)) {
+			__raw_writel(FIH_RERE_SURA_WIPE, restart_reason);
+		} else if (!strncmp(cmd, "sura_update", 11)) {
+			__raw_writel(FIH_RERE_SURA_UPDATE, restart_reason);
+		} else if (!strncmp(cmd, "sura_done", 9)) {
+			__raw_writel(FIH_RERE_SURA_DONE, restart_reason);
 		}
 	//HCLai add for memory test in RUNIN START
 		else if (strstr(cmd, "memory_test")) {

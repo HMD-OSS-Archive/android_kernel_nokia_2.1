@@ -2363,6 +2363,7 @@ static int msm_sec_mi2s_snd_startup(struct snd_pcm_substream *substream)
 
 	if (!q6core_is_adsp_ready()) {
 		pr_err("%s(): adsp not ready\n", __func__);
+                BUG_ON(1);
 		return -EINVAL;
 	}
 

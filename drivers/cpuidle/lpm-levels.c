@@ -1073,6 +1073,13 @@ bool psci_enter_sleep(struct lpm_cluster *cluster, int idx, bool from_idle)
 		state_id |= (power_state | affinity_level
 			| cluster->cpu->levels[idx].psci_id);
 
+		//CORE-PK-SuspendLog-00+[
+		#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+		if (!from_idle)
+			msm_rpmstats_get_stats_v2(&rpmstats_enter);
+		#endif
+		//CORE-PK-SuspendLog-00+]
+
 		update_debug_pc_event(CPU_ENTER, state_id,
 						0xdeaffeed, 0xdeaffeed, true);
 		stop_critical_timings();
@@ -1080,6 +1087,17 @@ bool psci_enter_sleep(struct lpm_cluster *cluster, int idx, bool from_idle)
 		start_critical_timings();
 		update_debug_pc_event(CPU_EXIT, state_id,
 						success, 0xdeaffeed, true);
+
+		//CORE-PK-SuspendLog-00+[
+		#ifdef CONFIG_FIH_SUSPEND_RESUME_LOG
+		if (!from_idle) {
+			msm_rpmstats_get_stats_v2(&rpmstats_exit);
+			//pr_info("CPU%u:\n", cpu);
+			msm_show_rpmstats();
+		}
+		#endif
+		//CORE-PK-SuspendLog-00+
+
 		return success;
 	}
 }

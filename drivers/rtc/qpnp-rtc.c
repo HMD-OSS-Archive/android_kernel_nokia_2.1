@@ -510,6 +510,7 @@ ssize_t rtc_get_alarm_time(struct device *dev, struct device_attribute *attr, ch
 				NUM_8_BIT_RTC_REGS);
 	if (rc) {
 		dev_err(dev, "Read from ALARM reg failed\n");
+		BBOX_RTC_READ_TIME_FAIL;
 		return rc;
 	}
 
@@ -539,6 +540,7 @@ ssize_t rtc_set_alarm_time(struct device *dev, struct device_attribute *attr, co
 				NUM_8_BIT_RTC_REGS);
 	if (rc) {
 		dev_err(dev, "Read from RTC reg failed\n");
+		BBOX_RTC_READ_TIME_FAIL;
 		return rc;
 	}
 
@@ -550,6 +552,7 @@ ssize_t rtc_set_alarm_time(struct device *dev, struct device_attribute *attr, co
 				rtc_dd->rtc_base + REG_OFFSET_RTC_READ, 1);
 	if (rc) {
 		dev_err(dev, "Read from RTC reg failed\n");
+		BBOX_RTC_READ_TIME_FAIL;
 		return rc;
 	}
 
@@ -559,6 +562,7 @@ ssize_t rtc_set_alarm_time(struct device *dev, struct device_attribute *attr, co
 				NUM_8_BIT_RTC_REGS);
 		if (rc) {
 			dev_err(dev, "Read from RTC reg failed\n");
+			BBOX_RTC_READ_TIME_FAIL;
 			return rc;
 		}
 	}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -22,6 +22,7 @@
 #include <linux/sched.h>
 #include <linux/ratelimit.h>
 #include <linux/timer.h>
+#include <linux/sched.h>
 #include <linux/platform_device.h>
 #include <linux/msm_mhi.h>
 #ifdef CONFIG_DIAG_OVER_USB
@@ -140,7 +141,6 @@ module_param(poolsize_qsc_usb, uint, 0);
 
 /* This is the max number of user-space clients supported at initialization*/
 static unsigned int max_clients = 15;
-static unsigned int threshold_client_limit = 50;
 module_param(max_clients, uint, 0);
 
 /* Timer variables */
@@ -340,7 +340,7 @@ static int diagchar_open(struct inode *inode, struct file *file)
 		if (i < driver->num_clients) {
 			diag_add_client(i, file);
 		} else {
-			if (i < threshold_client_limit) {
+			if (i < THRESHOLD_CLIENT_LIMIT) {
 				driver->num_clients++;
 				temp = krealloc(driver->client_map
 					, (driver->num_clients) * sizeof(struct
@@ -370,11 +370,17 @@ static int diagchar_open(struct inode *inode, struct file *file)
 			}
 		}
 		driver->data_ready[i] = 0x0;
+		atomic_set(&driver->data_ready_notif[i], 0);
 		driver->data_ready[i] |= MSG_MASKS_TYPE;
+		atomic_inc(&driver->data_ready_notif[i]);
 		driver->data_ready[i] |= EVENT_MASKS_TYPE;
+		atomic_inc(&driver->data_ready_notif[i]);
 		driver->data_ready[i] |= LOG_MASKS_TYPE;
+		atomic_inc(&driver->data_ready_notif[i]);
 		driver->data_ready[i] |= DCI_LOG_MASKS_TYPE;
+		atomic_inc(&driver->data_ready_notif[i]);
 		driver->data_ready[i] |= DCI_EVENT_MASKS_TYPE;
+		atomic_inc(&driver->data_ready_notif[i]);
 
 		if (driver->ref_count == 0)
 			diag_mempool_init();
@@ -530,8 +536,8 @@ static int diag_remove_client_entry(struct file *file)
 static int diagchar_close(struct inode *inode, struct file *file)
 {
 	int ret;
-	DIAG_LOG(DIAG_DEBUG_USERSPACE, "diag: process exit %s\n",
-		current->comm);
+	DIAG_LOG(DIAG_DEBUG_USERSPACE, "diag: %s process exit with pid = %d\n",
+		current->comm, current->tgid);
 	ret = diag_remove_client_entry(file);
 
 	return ret;
@@ -1137,15 +1143,19 @@ static int diag_process_userspace_remote(int proc, void *buf, int len)
 }
 #endif
 
-static int mask_request_validate(unsigned char mask_buf[])
+static int mask_request_validate(unsigned char mask_buf[], int len)
 {
 	uint8_t packet_id;
 	uint8_t subsys_id;
 	uint16_t ss_cmd;
 
+	if (len <= 0)
+		return 0;
 	packet_id = mask_buf[0];
 
 	if (packet_id == DIAG_CMD_DIAG_SUBSYS_DELAY) {
+		if (len < 2*sizeof(uint8_t) + sizeof(uint16_t))
+			return 0;
 		subsys_id = mask_buf[1];
 		ss_cmd = *(uint16_t *)(mask_buf + 2);
 		switch (subsys_id) {
@@ -1161,6 +1171,8 @@ static int mask_request_validate(unsigned char mask_buf[])
 			return 0;
 		}
 	} else if (packet_id == 0x4B) {
+		if (len < 2*sizeof(uint8_t) + sizeof(uint16_t))
+			return 0;
 		subsys_id = mask_buf[1];
 		ss_cmd = *(uint16_t *)(mask_buf + 2);
 		/* Packets with SSID which are allowed */
@@ -1830,8 +1842,10 @@ static int diag_ioctl_lsm_deinit(void)
 		mutex_unlock(&driver->diagchar_mutex);
 		return -EINVAL;
 	}
-
-	driver->data_ready[i] |= DEINIT_TYPE;
+	if (!(driver->data_ready[i] & DEINIT_TYPE)) {
+		driver->data_ready[i] |= DEINIT_TYPE;
+		atomic_inc(&driver->data_ready_notif[i]);
+	}
 	mutex_unlock(&driver->diagchar_mutex);
 	wake_up_interruptible(&driver->wait_q);
 
@@ -2701,7 +2715,8 @@ static int diag_user_process_raw_data(const char __user *buf, int len)
 	}
 
 	/* Check for proc_type */
-	remote_proc = diag_get_remote(*(int *)user_space_data);
+	if (len >= sizeof(int))
+		remote_proc = diag_get_remote(*(int *)user_space_data);
 	if (remote_proc) {
 		token_offset = sizeof(int);
 		if (len <= MIN_SIZ_ALLOW) {
@@ -2715,7 +2730,7 @@ static int diag_user_process_raw_data(const char __user *buf, int len)
 	}
 	if (driver->mask_check) {
 		if (!mask_request_validate(user_space_data +
-						token_offset)) {
+						token_offset, len)) {
 			pr_alert("diag: mask request Invalid\n");
 			diagmem_free(driver, user_space_data, mempool);
 			user_space_data = NULL;
@@ -2792,7 +2807,7 @@ static int diag_user_process_userspace_data(const char __user *buf, int len)
 	/* Check masks for On-Device logging */
 	if (driver->mask_check) {
 		if (!mask_request_validate(driver->user_space_data_buf +
-					   token_offset)) {
+					   token_offset, len)) {
 			pr_alert("diag: mask request Invalid\n");
 			return -EFAULT;
 		}
@@ -2904,13 +2919,13 @@ static int diag_user_process_apps_data(const char __user *buf, int len,
 	else
 		hdlc_disabled = driver->hdlc_disabled;
 	mutex_unlock(&driver->md_session_lock);
+	mutex_unlock(&driver->hdlc_disable_mutex);
 	if (hdlc_disabled)
 		ret = diag_process_apps_data_non_hdlc(user_space_data, len,
 						      pkt_type);
 	else
 		ret = diag_process_apps_data_hdlc(user_space_data, len,
 						  pkt_type);
-	mutex_unlock(&driver->hdlc_disable_mutex);
 	mutex_unlock(&apps_data_mutex);
 
 	diagmem_free(driver, user_space_data, mempool);
@@ -2928,16 +2943,6 @@ static int diag_user_process_apps_data(const char __user *buf, int len,
 	return 0;
 }
 
-static int check_data_ready(int index)
-{
-	int data_type = 0;
-
-	mutex_lock(&driver->diagchar_mutex);
-	data_type = driver->data_ready[index];
-	mutex_unlock(&driver->diagchar_mutex);
-	return data_type;
-}
-
 static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 			  loff_t *ppos)
 {
@@ -2949,6 +2954,8 @@ static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 	int exit_stat = 0;
 	int write_len = 0;
 	struct diag_md_session_t *session_info = NULL;
+	struct pid *pid_struct = NULL;
+	struct task_struct *task_s = NULL;
 
 	mutex_lock(&driver->diagchar_mutex);
 	for (i = 0; i < driver->num_clients; i++)
@@ -2964,7 +2971,8 @@ static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 		pr_err("diag: bad address from user side\n");
 		return -EFAULT;
 	}
-	wait_event_interruptible(driver->wait_q, (check_data_ready(index)) > 0);
+	wait_event_interruptible(driver->wait_q,
+			atomic_read(&driver->data_ready_notif[index]) > 0);
 
 	mutex_lock(&driver->diagchar_mutex);
 
@@ -2975,6 +2983,7 @@ static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 		/*Copy the type of data being passed*/
 		data_type = driver->data_ready[index] & USER_SPACE_DATA_TYPE;
 		driver->data_ready[index] ^= USER_SPACE_DATA_TYPE;
+		atomic_dec(&driver->data_ready_notif[index]);
 		COPY_USER_SPACE_OR_EXIT(buf, data_type, sizeof(int));
 		/* place holder for number of data field */
 		ret += sizeof(int);
@@ -2988,11 +2997,13 @@ static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 		/* In case, the thread wakes up and the logging mode is
 		not memory device any more, the condition needs to be cleared */
 		driver->data_ready[index] ^= USER_SPACE_DATA_TYPE;
+		atomic_dec(&driver->data_ready_notif[index]);
 	}
 
 	if (driver->data_ready[index] & HDLC_SUPPORT_TYPE) {
 		data_type = driver->data_ready[index] & HDLC_SUPPORT_TYPE;
 		driver->data_ready[index] ^= HDLC_SUPPORT_TYPE;
+		atomic_dec(&driver->data_ready_notif[index]);
 		COPY_USER_SPACE_OR_EXIT(buf, data_type, sizeof(int));
 		mutex_lock(&driver->md_session_lock);
 		session_info = diag_md_session_get_pid(current->tgid);
@@ -3014,6 +3025,7 @@ static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 		data_type = driver->data_ready[index] & DEINIT_TYPE;
 		COPY_USER_SPACE_OR_EXIT(buf, data_type, 4);
 		driver->data_ready[index] ^= DEINIT_TYPE;
+		atomic_dec(&driver->data_ready_notif[index]);
 		mutex_unlock(&driver->diagchar_mutex);
 		diag_remove_client_entry(file);
 		return ret;
@@ -3035,6 +3047,7 @@ static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 		if (write_len > 0)
 			ret += write_len;
 		driver->data_ready[index] ^= MSG_MASKS_TYPE;
+		atomic_dec(&driver->data_ready_notif[index]);
 		goto exit;
 	}
 
@@ -3068,6 +3081,7 @@ static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 		}
 		mutex_unlock(&driver->md_session_lock);
 		driver->data_ready[index] ^= EVENT_MASKS_TYPE;
+		atomic_dec(&driver->data_ready_notif[index]);
 		goto exit;
 	}
 
@@ -3087,6 +3101,7 @@ static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 		if (write_len > 0)
 			ret += write_len;
 		driver->data_ready[index] ^= LOG_MASKS_TYPE;
+		atomic_dec(&driver->data_ready_notif[index]);
 		goto exit;
 	}
 
@@ -3098,6 +3113,7 @@ static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 					*(driver->apps_req_buf),
 					driver->apps_req_buf_len);
 		driver->data_ready[index] ^= PKT_TYPE;
+		atomic_dec(&driver->data_ready_notif[index]);
 		driver->in_busy_pktdata = 0;
 		goto exit;
 	}
@@ -3109,6 +3125,7 @@ static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 		COPY_USER_SPACE_OR_EXIT(buf+4, *(driver->dci_pkt_buf),
 					driver->dci_pkt_length);
 		driver->data_ready[index] ^= DCI_PKT_TYPE;
+		atomic_dec(&driver->data_ready_notif[index]);
 		driver->in_busy_dcipktdata = 0;
 		goto exit;
 	}
@@ -3121,6 +3138,7 @@ static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 		COPY_USER_SPACE_OR_EXIT(buf + 8, (dci_ops_tbl[DCI_LOCAL_PROC].
 				event_mask_composite), DCI_EVENT_MASK_SIZE);
 		driver->data_ready[index] ^= DCI_EVENT_MASKS_TYPE;
+		atomic_dec(&driver->data_ready_notif[index]);
 		goto exit;
 	}
 
@@ -3132,6 +3150,7 @@ static ssize_t diagchar_read(struct file *file, char __user *buf, size_t count,
 		COPY_USER_SPACE_OR_EXIT(buf+8, (dci_ops_tbl[DCI_LOCAL_PROC].
 				log_mask_composite), DCI_LOG_MASK_SIZE);
 		driver->data_ready[index] ^= DCI_LOG_MASKS_TYPE;
+		atomic_dec(&driver->data_ready_notif[index]);
 		goto exit;
 	}
 
@@ -3144,17 +3163,40 @@ exit:
 		list_for_each_safe(start, temp, &driver->dci_client_list) {
 			entry = list_entry(start, struct diag_dci_client_tbl,
 									track);
-			if (entry->client->tgid != current->tgid)
+			pid_struct = find_get_pid(entry->tgid);
+			if (!pid_struct)
 				continue;
-			if (!entry->in_service)
+			task_s = get_pid_task(pid_struct, PIDTYPE_PID);
+			if (!task_s) {
+				DIAG_LOG(DIAG_DEBUG_DCI,
+				"diag: valid task doesn't exist for pid = %d\n",
+				entry->tgid);
+				put_pid(pid_struct);
 				continue;
+			}
+			if (task_s == entry->client) {
+				if (entry->client->tgid != current->tgid) {
+					put_task_struct(task_s);
+					put_pid(pid_struct);
+					continue;
+				}
+			}
+			if (!entry->in_service) {
+				put_task_struct(task_s);
+				put_pid(pid_struct);
+				continue;
+			}
 			if (copy_to_user(buf + ret, &data_type, sizeof(int))) {
+				put_task_struct(task_s);
+				put_pid(pid_struct);
 				mutex_unlock(&driver->dci_mutex);
 				goto end;
 			}
 			ret += sizeof(int);
 			if (copy_to_user(buf + ret, &entry->client_info.token,
 				sizeof(int))) {
+				put_task_struct(task_s);
+				put_pid(pid_struct);
 				mutex_unlock(&driver->dci_mutex);
 				goto end;
 			}
@@ -3163,11 +3205,16 @@ exit:
 			exit_stat = diag_copy_dci(buf, count, entry, &ret);
 			mutex_lock(&driver->diagchar_mutex);
 			driver->data_ready[index] ^= DCI_DATA_TYPE;
+			atomic_dec(&driver->data_ready_notif[index]);
 			mutex_unlock(&driver->diagchar_mutex);
 			if (exit_stat == 1) {
+				put_task_struct(task_s);
+				put_pid(pid_struct);
 				mutex_unlock(&driver->dci_mutex);
 				goto end;
 			}
+			put_task_struct(task_s);
+			put_pid(pid_struct);
 		}
 		mutex_unlock(&driver->dci_mutex);
 		goto end;

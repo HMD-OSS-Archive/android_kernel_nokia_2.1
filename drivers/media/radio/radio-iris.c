@@ -4353,6 +4353,9 @@ static int iris_vidioc_s_ctrl(struct file *file, void *priv,
 		if (!is_valid_rds_std(ctrl->value)) {
 			retval = -EINVAL;
 			FMDERR("%s: rds std is not valid\n", __func__);
+#ifdef BBSLOG
+				FM_RDS_ERROR;
+#endif	
 			goto END;
 		}
 		switch (radio->mode) {
@@ -4365,6 +4368,9 @@ static int iris_vidioc_s_ctrl(struct file *file, void *priv,
 			if (retval < 0) {
 				FMDERR("Error in rds_std");
 				radio->recv_conf.rds_std = saved_val;
+#ifdef BBSLOG
+				FM_RDS_ERROR;
+#endif	
 				goto END;
 			}
 			break;
@@ -4377,6 +4383,9 @@ static int iris_vidioc_s_ctrl(struct file *file, void *priv,
 			if (retval < 0) {
 				FMDERR("Error in rds_Std");
 				radio->trans_conf.rds_std = saved_val;
+#ifdef BBSLOG
+				FM_RDS_ERROR;
+#endif	
 				goto END;
 			}
 			break;

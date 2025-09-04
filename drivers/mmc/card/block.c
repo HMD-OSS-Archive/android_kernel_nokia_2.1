@@ -1923,6 +1923,11 @@ static int mmc_blk_err_check(struct mmc_card *card,
 		       (unsigned)blk_rq_pos(req),
 		       (unsigned)blk_rq_sectors(req),
 		       brq->cmd.resp[0], brq->stop.resp[0]);
+		pr_err("BBox;%s: error %d transferring data, sector %u, nr %u, cmd response %#x, card status %#x\n",
+		       req->rq_disk->disk_name, brq->data.error,
+		       (unsigned)blk_rq_pos(req),
+		       (unsigned)blk_rq_sectors(req),
+		       brq->cmd.resp[0], brq->stop.resp[0]);
 
 		if (rq_data_dir(req) == READ) {
 			if (ecc_err)

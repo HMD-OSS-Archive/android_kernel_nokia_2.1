@@ -1821,7 +1821,7 @@
 #include "msm8917-regulator.dtsi"
 #include "msm-pm8937.dtsi"
 #include "msm-audio.dtsi"
-#include "msm8917-audio-E2M.dtsi"
+#include "msm8917-audio-EVW.dtsi"
 #include "msm-gdsc-8916.dtsi"
 
 &gdsc_venus {

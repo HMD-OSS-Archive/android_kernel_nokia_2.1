@@ -1143,7 +1143,6 @@ static int qpnp_regulator_common2_set_voltage(struct regulator_dev *rdev,
 
 		qpnp_vreg_show_state(rdev, QPNP_REGULATOR_ACTION_VOLTAGE);
 	}
-
 	return rc;
 }
 

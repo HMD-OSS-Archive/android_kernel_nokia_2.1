@@ -9,6 +9,9 @@
 #define FIH_RERE_KERNEL_BUG           0x4B425547  /* fih_apr */
 #define FIH_RERE_KERNEL_RESTART       0x52455354  /* fih_apr */
 #define FIH_RERE_KERNEL_SHUTDOWN      0x5348444E  /* fih_apr */
+#define FIH_RERE_SURA_DONE            0x5375446e  /* fih_sura (SuDn) */
+#define FIH_RERE_SURA_UPDATE          0x53755261  /* fih_sura (SuRa) */
+#define FIH_RERE_SURA_WIPE            0x53755770  /* fih_sura (SuWp) */
 #define FIH_RERE_KERNEL_WDOG          0x57444F47  /* fih_apr */
 #define FIH_RERE_SECBOOT_UNLOCK       0x6C75636B  /* fih_lock */
 #define FIH_RERE_FASTBOOT_MODE        0x77665500

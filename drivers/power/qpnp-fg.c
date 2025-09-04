@@ -1165,6 +1165,10 @@ out:
 	}
 
 	mutex_unlock(&chip->rw_lock);
+#ifdef BBS_LOG
+	if(rc)
+		QPNPFG_WRITE_ERROR;
+#endif
 	return rc;
 }
 
