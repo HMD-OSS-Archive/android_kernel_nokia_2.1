@@ -27,6 +27,8 @@
 #include "dsi-panel-otm1290a-720p-video-hlt-evt.dtsi"
 #include "dsi-panel-otm1290a-720p-video.dtsi"
 #include "dsi-panel-otm1290a-720p-video-txd-evt.dtsi"
+#include "dsi-panel-ili9881c-720p-video-hlt.dtsi"
+#include "dsi-panel-ili9881c-720p-video-inno.dtsi"
 
 &soc {
 	dsi_panel_pwr_supply: dsi_panel_pwr_supply {

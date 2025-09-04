@@ -650,7 +650,9 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 			 jack_type, mbhc->hph_status);
 		wcd_mbhc_jack_report(mbhc, &mbhc->headset_jack,
 				mbhc->hph_status, WCD_MBHC_JACK_MASK);
-		wcd_mbhc_set_and_turnoff_hph_padac(mbhc);
+		if(!wcd_mbhc_is_hph_pa_on(mbhc)){
+			wcd_mbhc_set_and_turnoff_hph_padac(mbhc);
+		}
 		hphrocp_off_report(mbhc, SND_JACK_OC_HPHR);
 		hphlocp_off_report(mbhc, SND_JACK_OC_HPHL);
 		mbhc->current_plug = MBHC_PLUG_TYPE_NONE;
@@ -767,7 +769,10 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 				    WCD_MBHC_JACK_MASK);
 		wcd_mbhc_clr_and_turnon_hph_padac(mbhc);
 	}
-	pr_debug("%s: leave hph_status %x\n", __func__, mbhc->hph_status);
+
+	switch_set_state(&fih_hs->sdev, mbhc->current_plug);
+
+	pr_debug("%s: leave hph_status %x,switch_set_state %d\n", __func__, mbhc->hph_status,mbhc->current_plug);
 }
 
 static bool wcd_mbhc_detect_anc_plug_type(struct wcd_mbhc *mbhc)
@@ -1542,7 +1547,7 @@ exit:
 		mbhc->mbhc_cb->hph_pull_down_ctrl(codec, true);
 
 // ADD start Report headset plug state for FTM qiujie 2018.01.15
-#ifdef LEGACY_SWITCH_DEV_SUPPORT
+/*#ifdef LEGACY_SWITCH_DEV_SUPPORT
 	{
 		int mbhc_switch_state;
 		switch (plug_type) {
@@ -1562,7 +1567,7 @@ exit:
 		switch_set_state(&(fih_hs->sdev), mbhc_switch_state);
 		pr_info("%s: switch_set_state %d\n", __func__, mbhc_switch_state);
 	}
-#endif
+#endif*/
 // ADD end Report headset plug state for FTM qiujie 2018.01.15
 
 	mbhc->mbhc_cb->lock_sleep(mbhc, false);
@@ -1729,12 +1734,12 @@ static void wcd_mbhc_swch_irq_handler(struct wcd_mbhc *mbhc)
 	}
 
 // ADD start Report headset plug out for FTM qiujie 2018.01.15
-#ifdef LEGACY_SWITCH_DEV_SUPPORT
+/*#ifdef LEGACY_SWITCH_DEV_SUPPORT
 	if (!detection_type) {
 		switch_set_state(&(fih_hs->sdev), 0);
 		pr_info("%s: switch_set_state 0\n", __func__);
 	}
-#endif
+#endif*/
 // ADD end Report headset plug out for FTM qiujie 2018.01.15
 
 	mbhc->in_swch_irq_handler = false;

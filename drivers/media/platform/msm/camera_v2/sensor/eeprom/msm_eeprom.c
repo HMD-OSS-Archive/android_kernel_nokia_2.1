@@ -551,7 +551,7 @@ static int eeprom_parse_memory_map(struct msm_eeprom_ctrl_t *e_ctrl,
 	}
 	memptr = e_ctrl->cal_data.mapdata;
 	for (i = 0; i < e_ctrl->cal_data.num_data; i++)
-		pr_err("memory_data[%d] = 0x%X\n", i, memptr[i]);
+		CDBG("memory_data[%d] = 0x%X\n", i, memptr[i]);
 	return rc;
 
 clean_up:
